@@ -92,3 +92,5 @@ html.night:not(.layer-colors) #photoRaster,html.night:not(.layer-colors) #topoRa
 .tabs button{letter-spacing:.07em}
 #compareModes{flex-wrap:wrap}#compareModes button{flex:1 1 40%}
 button.compass{background:transparent;border:0;min-height:0;padding:4px 0;color:var(--text);font:inherit;font-size:10px;width:43px;display:grid;justify-items:center;gap:3px;cursor:pointer}button.compass svg{transform:rotate(var(--north,0deg));transition:transform .15s linear}button.compass.active{color:#e2c587;background:#2a2014;border:1px solid #c9a45c;border-radius:10px}.heading-badge{font-size:11px;gap:7px}.heading-badge span{color:var(--muted)}
+
+.map-tools .temp-btn{display:grid;place-items:center;align-content:center;gap:0;padding:4px;line-height:1}.temp-btn strong{font-family:var(--engraved);font-size:15px;font-weight:600;color:#efe6d2}.temp-btn small{font-size:10px;color:#e2c587;min-height:10px}.temp-btn.alert{border-color:var(--warm)!important}.temp-btn.alert small{color:var(--warm)}

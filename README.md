@@ -9,6 +9,7 @@
 - **Modo nocturno rojo** desde el mapa o Conexión: todo pasa a escala de grises con más contraste y después a rojo puro (sin luz verde ni azul), con intensidad regulable (20–100 %), imágenes del mapa atenuadas para que destaquen puntos y textos,, encendido automático al anochecer y, opcionalmente, un color por mapa (actual rojo, foto histórica ámbar, plano en líneas amarillas) para distinguir la mezcla y la cortina.
 - **Modo Orientación** (rosa N del mapa): la aguja señala el norte real y un haz desde tu posición GPS o el puesto muestra hacia dónde apunta el móvil, con marcas cada 50 m en metros y vueltas, y avisa del spot que queda en línea.
 - **Cortina plano**: la cortina desliza el plano histórico sobre una mezcla del satélite actual y la foto histórica (la mezcla se ajusta con la opacidad de la fotografía).
+- Botón de temperatura actual en el mapa (en lugar de + y −) con la tendencia de la presión; al tocarlo abre la previsión.
 - Botón de picada rápida en el mapa e indicadores de viento/presión y de recebado sobre el mapa.
 
 
