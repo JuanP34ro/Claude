@@ -1,4 +1,14 @@
-# Orellana Atlas · versión 0.3
+# Orellana Atlas · versión 0.4
+
+## Novedades 0.4 · sesión de pesca
+
+- **Tiempo** (Open-Meteo, CC BY 4.0, sin clave): presión actual y su tendencia en 3, 12 y 24 h, gráfico de 3 días atrás y previsión, aviso de cambio rápido (umbral configurable), viento con rachas y si da de cara, de espalda o lateral respecto al puesto y los spots, tabla de las próximas 24 h. Se envía la zona del puesto redondeada a ~1 km; los últimos datos quedan guardados para verlos sin conexión.
+- **Sol y luna** calculados en el móvil (sin conexión): amanecer, anochecer, fase, iluminación y salida y puesta de la luna.
+- **Sesión**: cañas (spot, vueltas al clip, montaje, cebo), botones Lancé / Cebé / Picada, temporizador de recebado con aviso (solo con la app abierta) y cebado del día por spot.
+- **Diario de capturas**: captura, pez perdido o picada fallida, especie, peso en kg, caña, spot, cebo y montaje. Cada entrada guarda automáticamente presión, tendencia, viento, temperatura, nubosidad y fase lunar de su hora. Resumen de sesión y exportación CSV.
+- **Modo nocturno rojo** desde el mapa o Conexión.
+- Botón de picada rápida en el mapa e indicadores de viento/presión y de recebado sobre el mapa.
+
 
 ## Novedades 0.3 · carpfishing
 

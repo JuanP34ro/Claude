@@ -90,7 +90,7 @@ def fetch_wms(url: str, operation: str) -> tuple[bytes, str]:
     if not _GATE.acquire(timeout=3):
         raise TimeoutError("Demasiadas peticiones simultáneas; reintenta en unos segundos")
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.3 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
+        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.4 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
         opener = urllib.request.build_opener(RestrictedRedirect())
         with opener.open(req, timeout=16) as response:
             data = response.read(MAX_BYTES + 1)

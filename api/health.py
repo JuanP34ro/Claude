@@ -3,4 +3,4 @@ from wms_proxy import send_json
 
 class handler(BaseHTTPRequestHandler):
     def do_GET(self):
-        send_json(self, 200, {"app": "orellana-atlas", "version": "0.3", "proxy": True})
+        send_json(self, 200, {"app": "orellana-atlas", "version": "0.4", "proxy": True})
