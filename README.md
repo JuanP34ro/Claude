@@ -1,4 +1,16 @@
-# Orellana Atlas · versión 0.2
+# Orellana Atlas · versión 0.3
+
+## Novedades 0.3 · carpfishing
+
+- Distancia desde el puesto en metros y en **vueltas de distance sticks** (3,9 m por vuelta por defecto, configurable) y **rumbo** a cada punto, con líneas en el mapa.
+- Radios del puesto configurables (hasta cuatro; 200 y 250 m por defecto).
+- Tipos de punto: cebado, picadas, enganche/obstáculo, cambio de fondo, cauce antiguo; tipo de fondo y marca de alineación en la orilla.
+- GPS continuo y botón **Marcar aquí** con la posición actual.
+- **Compartir puntos con compañeros** (GeoJSON por la hoja de Compartir del iPhone). Al importar, los puntos con el mismo identificador se actualizan si son más recientes y no se duplican.
+- Recordatorio de copia de seguridad, solicitud de almacenamiento persistente y guardado al pasar la app a segundo plano.
+- Menos datos: ortofotos en JPEG cuando el catálogo lo anuncia, imágenes del IGN pedidas directamente (con el proxy como reserva) y caché en la CDN de Vercel para las respuestas del proxy.
+
+En iPhone, Safari y el icono de la pantalla de inicio guardan los datos por separado: usa siempre el mismo.
 
 Aplicación de investigación cartográfica para Orellana: fotografías aéreas históricas, planos antiguos, puntos, trazados y mediciones propias. Fecha de entrega: 7 de octubre de 2026.
 

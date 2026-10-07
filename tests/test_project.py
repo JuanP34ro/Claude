@@ -58,7 +58,7 @@ class ServerTests(unittest.TestCase):
         with urllib.request.urlopen(self.base + '/api/health', timeout=3) as response:
             data = json.load(response)
             self.assertEqual(data['app'], 'orellana-atlas')
-            self.assertEqual(data['version'], '0.2')
+            self.assertEqual(data['version'], '0.3')
             self.assertTrue(data['proxy'])
             self.assertFalse(data['lan'])
 

@@ -41,7 +41,7 @@ def main():
                     return route.continue_()
                 page.route('**/*', routing)
                 page.goto(base, wait_until='domcontentloaded')
-                page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.2'")
+                page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.3'")
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Horizontal overflow'
                 assert page.locator('link[rel="apple-touch-icon"]').get_attribute('href') == 'apple-touch-icon.png'
                 if mobile:

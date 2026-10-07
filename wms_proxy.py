@@ -90,7 +90,7 @@ def fetch_wms(url: str, operation: str) -> tuple[bytes, str]:
     if not _GATE.acquire(timeout=3):
         raise TimeoutError("Demasiadas peticiones simultáneas; reintenta en unos segundos")
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.2 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
+        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.3 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
         opener = urllib.request.build_opener(RestrictedRedirect())
         with opener.open(req, timeout=16) as response:
             data = response.read(MAX_BYTES + 1)
@@ -134,7 +134,7 @@ def serve_wms(handler: BaseHTTPRequestHandler):
     handler.send_response(200)
     handler.send_header("Content-Type", content_type)
     handler.send_header("Content-Length", str(len(data)))
-    handler.send_header("Cache-Control", "public, max-age=3600" if operation == "getcapabilities" else "public, max-age=300")
+    handler.send_header("Cache-Control", "public, max-age=3600, s-maxage=86400" if operation == "getcapabilities" else "public, max-age=86400, s-maxage=604800")
     handler.send_header("X-Content-Type-Options", "nosniff")
     handler.end_headers()
     try:
