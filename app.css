@@ -59,18 +59,36 @@ input[type=checkbox]{accent-color:#c9a45c}
 .wx-astro{display:grid;gap:7px;font-size:12px;line-height:1.5}.wx-astro strong{color:#e2c587;font-family:var(--engraved);letter-spacing:.08em;margin-right:4px}
 .wx-badge,.rebait-badge{pointer-events:auto;cursor:pointer;min-height:0;color:var(--text);font:inherit;font-size:11px}.wx-badge span{color:var(--muted)}.wx-badge.alert{border-color:var(--warm)}.wx-badge.alert span{color:var(--warm)}.rebait-badge{border-color:var(--warm)!important;color:var(--warm)}
 .map-tools .catch-tool{color:#ff9ec4;border-color:#ff7fb077}
-/* Modo noche: el contenido pasa a escala de grises con más contraste y una capa «multiplicar» lo deja en rojo puro (sin verde ni azul).
-   El filtro va en los hijos y no en body/dialog, para que no anule la capa roja. --night-dim oscurece según la intensidad elegida. */
-html.night{--text:#fff;--muted:#e6e6e6;background:#000}
+/* Modo noche. Interfaz (cabecera, panel, fichas): escala de grises con más contraste y una capa «multiplicar» roja propia de cada bloque,
+   para que deje rojo puro sin teñir el mapa. Mapa: cada capa con su tono cálido (rojo/ámbar/amarillo) o todo rojo; puntos y líneas con un filtro SVG rojo.
+   Controles del mapa: colores rojos explícitos. --night-dim oscurece según la intensidad elegida. */
+html.night{--text:#fff;--muted:#e6e6e6;--nr:#ff3322;--nr-dim:#6b120a;background:#000}
 html.night body{background:#000}
-html.night body>header,html.night body>main,html.night #toast,html.night dialog>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night header>*,html.night aside>*,html.night dialog>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night header,html.night aside{isolation:isolate;position:relative}
+@media(max-width:700px){html.night aside{position:absolute}}
+html.night header::after,html.night aside::after{content:"";position:absolute;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:1000}
 html.night body::before,html.night dialog::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
-html.night body::after,html.night dialog::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
+html.night dialog::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
 html.night dialog::backdrop{background:#000}html.night dialog{box-shadow:none;border-color:#555;clip-path:inset(0 round 15px)}
-html.night .tiny,html.night .note,html.night .meta,html.night .status,html.night .wx-tick,html.night .stat-row small,html.night .map-tag .sub-tag,html.night .wx-badge span{color:#fff!important;fill:#fff}
-html.night .map-label{stroke:#000;stroke-width:5px}html.night .map-label.sub{fill:#fff}
-html.night .point-card,html.night .layer-card,html.night input,html.night select,html.night textarea,html.night .map-tag,html.night .map-tools .icon-btn{background:#000!important}
-html.night .raster img{filter:brightness(.62) contrast(1.2)}
+html.night #mobileScrim{background:#000c!important}
+html.night .tiny,html.night .note,html.night .meta,html.night .status,html.night .wx-tick,html.night .stat-row small,html.night .wx-badge span{color:#fff!important;fill:#fff}
+html.night .point-card,html.night .layer-card,html.night input,html.night select,html.night textarea{background:#000!important}
+html.night #map{background:#000}
+html.night #mapShell :is(.map-tools,.map-top,.map-bottom,.attribution,.mobile-menu,.gps-mark,#actionBar,.aim-panel,.map-alert,.map-welcome,.offline-banner,#swipe),html.night #toast{color:var(--nr)!important;text-shadow:none!important}
+html.night #mapShell :is(.map-tools,.map-top,.map-bottom,.attribution,.mobile-menu,.gps-mark,#actionBar,.aim-panel,.map-alert,.map-welcome,.offline-banner) :not(.night-swatch){color:inherit!important;border-color:var(--nr-dim)!important;text-shadow:none!important}
+html.night #mapShell :is(.map-tools .icon-btn,.map-tag,.coords,.attribution,.mobile-menu,.gps-mark,#actionBar,.aim-panel,.map-alert,.offline-banner,button,button.compass.active),html.night #toast{background:#000!important;border-color:var(--nr-dim)!important;box-shadow:none!important}
+html.night #mapShell :is(.map-tools .icon-btn.active,button.compass.active,.primary){border-color:var(--nr)!important;background:#2a0300!important}
+html.night #swipe{border-left-color:var(--nr)!important;filter:none}html.night #swipeHandle{background:#2a0300!important;border-color:var(--nr)!important;color:var(--nr)!important}
+html.night #mapShell .compass path{fill:var(--nr)}html.night #mapShell .compass path+path{fill:#7a1208}html.night #aimArrow path{fill:var(--nr);stroke:#000}html.night .aim-dial circle,html.night .aim-dial path:not(#aimArrow path){stroke:var(--nr-dim)}
+html.night .scale div{border-color:var(--nr)!important;box-shadow:none!important}html.night .welcome-medal{display:none}html.night .loading-line{background:var(--nr)}
+html.night .aim-panel.aligned .aim-text{color:#ff6a50!important}
+/* Tonos de las capas (solo colores cálidos: el verde y el azul deslumbran más de noche). */
+html.night #baseRaster{filter:grayscale(1) brightness(.5) sepia(1) saturate(10) hue-rotate(-25deg)}
+html.night.layer-colors #photoRaster{filter:grayscale(1) brightness(.62) sepia(1) saturate(6)}
+html.night.layer-colors #topoRaster{filter:grayscale(1) invert(1) contrast(1.4) brightness(.7) sepia(1) saturate(6) hue-rotate(15deg);mix-blend-mode:screen}
+html.night:not(.layer-colors) #photoRaster,html.night:not(.layer-colors) #topoRaster,html.night #bathRaster{filter:grayscale(1) brightness(.42) sepia(1) saturate(10) hue-rotate(-25deg)}
+.night-legend{display:none}html.night.layer-colors .night-legend{display:flex}.night-legend{gap:9px;font-size:10px}.night-swatch{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:4px;vertical-align:-1px}
 .tabs button{letter-spacing:.07em}
 #compareModes{flex-wrap:wrap}#compareModes button{flex:1 1 40%}
 button.compass{background:transparent;border:0;min-height:0;padding:4px 0;color:var(--text);font:inherit;font-size:10px;width:43px;display:grid;justify-items:center;gap:3px;cursor:pointer}button.compass svg{transform:rotate(var(--north,0deg));transition:transform .15s linear}button.compass.active{color:#e2c587;background:#2a2014;border:1px solid #c9a45c;border-radius:10px}.heading-badge{font-size:11px;gap:7px}.heading-badge span{color:var(--muted)}
