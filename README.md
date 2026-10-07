@@ -6,7 +6,7 @@
 - **Sol y luna** calculados en el móvil (sin conexión): amanecer, anochecer, fase, iluminación y salida y puesta de la luna.
 - **Sesión**: cañas (spot, vueltas al clip, montaje, cebo), botones Lancé / Cebé / Picada, temporizador de recebado con aviso (solo con la app abierta) y cebado del día por spot.
 - **Diario de capturas**: captura, pez perdido o picada fallida, especie, peso en kg, caña, spot, cebo y montaje. Cada entrada guarda automáticamente presión, tendencia, viento, temperatura, nubosidad y fase lunar de su hora. Resumen de sesión y exportación CSV.
-- **Modo nocturno rojo** desde el mapa o Conexión.
+- **Modo nocturno rojo** desde el mapa o Conexión: todo pasa a escala de grises con más contraste y después a rojo puro (sin luz verde ni azul), con intensidad regulable (20–100 %), imágenes del mapa atenuadas para que destaquen puntos y textos, y encendido automático al anochecer.
 - **Modo Orientación** (rosa N del mapa): la aguja señala el norte real y un haz desde tu posición GPS o el puesto muestra hacia dónde apunta el móvil, con marcas cada 50 m en metros y vueltas, y avisa del spot que queda en línea.
 - **Cortina plano**: la cortina desliza el plano histórico sobre una mezcla del satélite actual y la foto histórica (la mezcla se ajusta con la opacidad de la fotografía).
 - Botón de picada rápida en el mapa e indicadores de viento/presión y de recebado sobre el mapa.

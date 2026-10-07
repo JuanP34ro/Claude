@@ -59,7 +59,18 @@ input[type=checkbox]{accent-color:#c9a45c}
 .wx-astro{display:grid;gap:7px;font-size:12px;line-height:1.5}.wx-astro strong{color:#e2c587;font-family:var(--engraved);letter-spacing:.08em;margin-right:4px}
 .wx-badge,.rebait-badge{pointer-events:auto;cursor:pointer;min-height:0;color:var(--text);font:inherit;font-size:11px}.wx-badge span{color:var(--muted)}.wx-badge.alert{border-color:var(--warm)}.wx-badge.alert span{color:var(--warm)}.rebait-badge{border-color:var(--warm)!important;color:var(--warm)}
 .map-tools .catch-tool{color:#ff9ec4;border-color:#ff7fb077}
-html.night body::after{content:"";position:fixed;inset:0;background:#d40000;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}html.night dialog::after{content:"";position:fixed;inset:0;background:#d40000;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}html.night body{filter:brightness(.75)}html.night dialog{filter:brightness(.75)}
+/* Modo noche: el contenido pasa a escala de grises con más contraste y una capa «multiplicar» lo deja en rojo puro (sin verde ni azul).
+   El filtro va en los hijos y no en body/dialog, para que no anule la capa roja. --night-dim oscurece según la intensidad elegida. */
+html.night{--text:#fff;--muted:#e6e6e6;background:#000}
+html.night body{background:#000}
+html.night body>header,html.night body>main,html.night #toast,html.night dialog>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night body::before,html.night dialog::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
+html.night body::after,html.night dialog::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
+html.night dialog::backdrop{background:#000}html.night dialog{box-shadow:none;border-color:#555;clip-path:inset(0 round 15px)}
+html.night .tiny,html.night .note,html.night .meta,html.night .status,html.night .wx-tick,html.night .stat-row small,html.night .map-tag .sub-tag,html.night .wx-badge span{color:#fff!important;fill:#fff}
+html.night .map-label{stroke:#000;stroke-width:5px}html.night .map-label.sub{fill:#fff}
+html.night .point-card,html.night .layer-card,html.night input,html.night select,html.night textarea,html.night .map-tag,html.night .map-tools .icon-btn{background:#000!important}
+html.night .raster img{filter:brightness(.62) contrast(1.2)}
 .tabs button{letter-spacing:.07em}
 #compareModes{flex-wrap:wrap}#compareModes button{flex:1 1 40%}
 button.compass{background:transparent;border:0;min-height:0;padding:4px 0;color:var(--text);font:inherit;font-size:10px;width:43px;display:grid;justify-items:center;gap:3px;cursor:pointer}button.compass svg{transform:rotate(var(--north,0deg));transition:transform .15s linear}button.compass.active{color:#e2c587;background:#2a2014;border:1px solid #c9a45c;border-radius:10px}.heading-badge{font-size:11px;gap:7px}.heading-badge span{color:var(--muted)}
