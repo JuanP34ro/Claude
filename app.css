@@ -61,3 +61,4 @@ input[type=checkbox]{accent-color:#c9a45c}
 .map-tools .catch-tool{color:#ff9ec4;border-color:#ff7fb077}
 html.night body::after{content:"";position:fixed;inset:0;background:#d40000;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}html.night dialog::after{content:"";position:fixed;inset:0;background:#d40000;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}html.night body{filter:brightness(.75)}html.night dialog{filter:brightness(.75)}
 .tabs button{letter-spacing:.07em}
+#compareModes{flex-wrap:wrap}#compareModes button{flex:1 1 40%}

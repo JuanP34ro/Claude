@@ -7,6 +7,7 @@
 - **Sesión**: cañas (spot, vueltas al clip, montaje, cebo), botones Lancé / Cebé / Picada, temporizador de recebado con aviso (solo con la app abierta) y cebado del día por spot.
 - **Diario de capturas**: captura, pez perdido o picada fallida, especie, peso en kg, caña, spot, cebo y montaje. Cada entrada guarda automáticamente presión, tendencia, viento, temperatura, nubosidad y fase lunar de su hora. Resumen de sesión y exportación CSV.
 - **Modo nocturno rojo** desde el mapa o Conexión.
+- **Cortina plano**: la cortina desliza el plano histórico sobre una mezcla del satélite actual y la foto histórica (la mezcla se ajusta con la opacidad de la fotografía).
 - Botón de picada rápida en el mapa e indicadores de viento/presión y de recebado sobre el mapa.
 
 
