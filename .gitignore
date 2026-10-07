@@ -1,0 +1,27 @@
+# Local/build artifacts and credentials
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+.env
+.env.*
+!.env.example
+.vercel/
+node_modules/
+.DS_Store
+Thumbs.db
+.vscode/
+*.log
+# Personal fishing data / exported projects (never commit user notes)
+data-private/
+backups/
+Orellana_*.json
+Orellana_*.geojson
+Orellana_*.gpx
+*.sl2
+*.sl3
+# Local browser/test results
+test-results/
+playwright-report/
+.coverage
+# index.html is generated, but deliberately committed for static previews.

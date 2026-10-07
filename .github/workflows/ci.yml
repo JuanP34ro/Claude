@@ -1,0 +1,27 @@
+name: Comprobar Orellana Atlas
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+permissions:
+  contents: read
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          persist-credentials: false
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.12'
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+      - name: JavaScript valido
+        run: node --check app.js
+      - name: HTML actualizado
+        run: python build.py --check
+      - name: Pruebas locales sin cartografia externa
+        run: python -m unittest discover -s tests -v

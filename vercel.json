@@ -1,0 +1,16 @@
+{
+  "$schema": "https://openapi.vercel.sh/vercel.json",
+  "framework": null,
+  "functions": {
+    "api/wms.py": {"maxDuration": 30, "includeFiles": "wms_proxy.py"},
+    "api/health.py": {"includeFiles": "wms_proxy.py"}
+  },
+  "headers": [{
+    "source": "/(.*)",
+    "headers": [
+      {"key": "X-Content-Type-Options", "value": "nosniff"},
+      {"key": "Referrer-Policy", "value": "strict-origin-when-cross-origin"},
+      {"key": "Permissions-Policy", "value": "geolocation=(self)"}
+    ]
+  }]
+}
