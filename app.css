@@ -62,3 +62,4 @@ input[type=checkbox]{accent-color:#c9a45c}
 html.night body::after{content:"";position:fixed;inset:0;background:#d40000;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}html.night dialog::after{content:"";position:fixed;inset:0;background:#d40000;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}html.night body{filter:brightness(.75)}html.night dialog{filter:brightness(.75)}
 .tabs button{letter-spacing:.07em}
 #compareModes{flex-wrap:wrap}#compareModes button{flex:1 1 40%}
+button.compass{background:transparent;border:0;min-height:0;padding:4px 0;color:var(--text);font:inherit;font-size:10px;width:43px;display:grid;justify-items:center;gap:3px;cursor:pointer}button.compass svg{transform:rotate(var(--north,0deg));transition:transform .15s linear}button.compass.active{color:#e2c587;background:#2a2014;border:1px solid #c9a45c;border-radius:10px}.heading-badge{font-size:11px;gap:7px}.heading-badge span{color:var(--muted)}
