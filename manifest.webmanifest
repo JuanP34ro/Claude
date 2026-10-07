@@ -1,12 +1,12 @@
 {
-  "name": "Orellana Atlas",
+  "name": "Orellana Carp Atlas",
   "short_name": "Orellana",
   "description": "Mapas históricos, puntos y mediciones de Orellana. Cartografía en línea.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b151b",
-  "theme_color": "#0b151b",
+  "background_color": "#000000",
+  "theme_color": "#000000",
   "lang": "es",
   "icons": [
     {

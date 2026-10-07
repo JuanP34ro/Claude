@@ -10,6 +10,9 @@
 - Recordatorio de copia de seguridad, solicitud de almacenamiento persistente y guardado al pasar la app a segundo plano.
 - Menos datos: ortofotos en JPEG cuando el catálogo lo anuncia, imágenes del IGN pedidas directamente (con el proxy como reserva) y caché en la CDN de Vercel para las respuestas del proxy.
 
+- **Apuntar**: guía con la brújula del móvil hacia un punto desde el puesto o desde la posición GPS («Gira 12° a la derecha» / «En línea ✓»). Error típico de la brújula: 5–15°, mayor cerca de metal.
+- Estilo clásico (negro, oro envejecido y plata, tipografía grabada y caligráfica del sistema) con medallón e icono propios. No incluye logotipos ni nombres de terceros.
+
 En iPhone, Safari y el icono de la pantalla de inicio guardan los datos por separado: usa siempre el mismo.
 
 Aplicación de investigación cartográfica para Orellana: fotografías aéreas históricas, planos antiguos, puntos, trazados y mediciones propias. Fecha de entrega: 7 de octubre de 2026.
