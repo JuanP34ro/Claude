@@ -1,4 +1,6 @@
-# Orellana Atlas · versión 0.4
+# Carp Field Notes · versión 0.4
+
+Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los identificadores internos (`orellana-atlas` en el almacenamiento, las copias y la API) se mantienen para conservar los datos guardados.
 
 ## Novedades 0.4 · sesión de pesca
 

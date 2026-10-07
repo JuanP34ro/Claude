@@ -1,7 +1,7 @@
 {
-  "name": "Orellana Carp Atlas",
-  "short_name": "Orellana",
-  "description": "Mapas históricos, puntos y mediciones de Orellana. Cartografía en línea.",
+  "name": "Carp Field Notes",
+  "short_name": "Carp Notes",
+  "description": "Cuaderno de campo de carpfishing en Orellana: mapas históricos, puntos, sesiones, capturas y tiempo.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
