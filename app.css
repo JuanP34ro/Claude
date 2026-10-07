@@ -94,3 +94,33 @@ html.night:not(.layer-colors) #photoRaster,html.night:not(.layer-colors) #topoRa
 button.compass{background:transparent;border:0;min-height:0;padding:4px 0;color:var(--text);font:inherit;font-size:10px;width:43px;display:grid;justify-items:center;gap:3px;cursor:pointer}button.compass svg{transform:rotate(var(--north,0deg));transition:transform .15s linear}button.compass.active{color:#e2c587;background:#2a2014;border:1px solid #c9a45c;border-radius:10px}.heading-badge{font-size:11px;gap:7px}.heading-badge span{color:var(--muted)}
 
 .map-tools .temp-btn{display:grid;place-items:center;align-content:center;gap:0;padding:4px;line-height:1}.temp-btn strong{font-family:var(--engraved);font-size:15px;font-weight:600;color:#efe6d2}.temp-btn small{font-size:10px;color:#e2c587;min-height:10px}.temp-btn.alert{border-color:var(--warm)!important}.temp-btn.alert small{color:var(--warm)}
+
+/* Tutorial: cuaderno antiguo con páginas que pasan y dibujos a tinta que se trazan. */
+:root{--hand:"Bradley Hand","Noteworthy","Segoe Print","Ink Free","Chalkboard SE",cursive;--ink:#3b2614}
+dialog.tutorial{background:transparent;border:0;box-shadow:none;width:min(560px,calc(100% - 20px));height:min(700px,calc(100dvh - 24px));max-height:none;overflow:visible;padding:0}
+dialog.tutorial::backdrop{background:#0b0805e6}
+.tut-book{position:absolute;inset:0 0 62px 0;perspective:1800px}
+.tut-page{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;padding:22px 22px 30px 30px;border-radius:3px 12px 12px 3px;color:#2e1d0e;transform-origin:left center;backface-visibility:hidden;
+ background:radial-gradient(ellipse at 82% 12%,#b78d4a33,transparent 32%),radial-gradient(ellipse at 15% 88%,#8a5a2433,transparent 38%),linear-gradient(90deg,#9c7a46 0,#d9c290 2.5%,#efe1bd 9%,#f3e7c8 55%,#e8d5a8 100%);
+ box-shadow:inset 0 0 45px #7a4f1c59,inset 14px 0 18px -10px #5b3a1688,0 14px 50px #000c}
+.tut-page::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .42  0 0 0 0 .28  0 0 0 0 .12  0 0 0 .32 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.tut-page::after{content:"";position:absolute;top:0;bottom:0;left:22px;width:1px;background:#b5523a55}
+.tut-page.active,.tut-page.flip-out{display:flex}.tut-page.flip-out{z-index:3;animation:tutFlipOut .8s cubic-bezier(.45,.05,.6,1) forwards}.tut-page.flip-in{z-index:3;animation:tutFlipIn .8s cubic-bezier(.3,.2,.4,1) forwards}
+@keyframes tutFlipOut{0%{transform:rotateY(0);filter:brightness(1)}100%{transform:rotateY(-105deg);filter:brightness(.55);opacity:.15}}
+@keyframes tutFlipIn{0%{transform:rotateY(-105deg);filter:brightness(.55);opacity:.15}100%{transform:none;filter:none;opacity:1}}
+.tut-kicker{position:relative;font-family:var(--engraved);letter-spacing:.22em;font-size:10px;color:#8b3a1a}
+.tut-title{position:relative;font-family:var(--script);font-weight:400;font-size:34px;line-height:1.05;margin:4px 0 2px;color:var(--ink)}
+.tut-art{position:relative;width:100%;flex:1 1 auto;min-height:0;max-height:300px;margin:4px 0}
+.tut-text{position:relative;font-family:var(--hand);font-size:17px;line-height:1.5;margin:4px 0 0;color:#2e1d0e}.tut-text b{color:#6e2a12}
+.tut-folio{position:absolute;bottom:10px;left:0;right:0;text-align:center;font-family:var(--hand);font-size:12px;color:#7a5a32}
+.tut-art .ink{fill:none;stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.tut-art .thin,.tut-art .thin *{stroke-width:1.05}.tut-art g.ink *{fill:none;stroke:inherit}
+.tut-art .hand{font-family:var(--hand);font-size:11.5px;fill:#8b3a1a}.tut-art .hand.big{font-size:15px;fill:#6e2a12}
+.tut-art .wash{opacity:.22}
+.tut-page.draw .ink,.tut-page.draw .ink *{stroke-dasharray:1;stroke-dashoffset:1;animation:tutInk 1.3s ease-out forwards;animation-delay:var(--d,0s)}
+.tut-page.draw .hand,.tut-page.draw .sw,.tut-page.draw .wash{opacity:0;animation:tutFade .7s ease-out forwards;animation-delay:var(--d,0s)}.tut-page.draw .wash{animation-name:tutWash}
+@keyframes tutInk{to{stroke-dashoffset:0}}@keyframes tutFade{to{opacity:1}}@keyframes tutWash{to{opacity:.22}}
+.tut-nav{position:absolute;left:0;right:0;bottom:0;height:52px;display:flex;align-items:center;justify-content:space-between;gap:8px}
+.tut-nav button{min-height:42px}.tut-nav .ghost{color:#e2c587;border-color:#5a4a33}#tutPrev{width:42px;font-size:20px;padding:0}
+.tut-dots{display:flex;gap:6px}.tut-dots i{width:7px;height:7px;border-radius:50%;background:#5a4a33}.tut-dots i.on{background:#e2c587}
+@media(max-width:700px){.tut-title{font-size:30px}.tut-text{font-size:15.5px}.tut-page{padding:18px 16px 28px 26px}.tut-page::after{left:18px}}
+@media(prefers-reduced-motion:reduce){.tut-page.flip-out,.tut-page.flip-in{animation:none}.tut-page.draw .ink,.tut-page.draw .ink *,.tut-page.draw .hand,.tut-page.draw .sw,.tut-page.draw .wash{animation:none;stroke-dashoffset:0;opacity:1}.tut-page.draw .wash{opacity:.22}}

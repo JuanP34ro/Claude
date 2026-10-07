@@ -42,6 +42,13 @@ def main():
                 page.route('**/*', routing)
                 page.goto(base, wait_until='domcontentloaded')
                 page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.4'")
+                page.locator('#tutorial').wait_for(state='visible')
+                assert page.locator('#tutorial .tut-page.active').count() == 1, 'Tutorial did not open on first run'
+                page.locator('#tutNext').click()
+                page.wait_for_timeout(900)
+                assert page.locator('#tutorial .tut-page.active').count() == 1
+                page.locator('#tutSkip').click()
+                assert page.evaluate('window.OrellanaAtlas.getState().settings.tutorialSeen'), 'Tutorial not marked as seen'
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Horizontal overflow'
                 assert page.locator('link[rel="apple-touch-icon"]').get_attribute('href') == 'apple-touch-icon.png'
                 if mobile:
@@ -66,7 +73,7 @@ def main():
                     page.locator('#backupBtn').click()
                 assert download.value.suggested_filename.endswith('.json')
                 assert not errors, errors
-                print(f'PASS {name}: startup, no overflow, point form, save/reload, help, export; maps unavailable by design')
+                print(f'PASS {name}: startup, tutorial, no overflow, point form, save/reload, help, export; maps unavailable by design')
                 context.close()
             browser.close()
     finally:

@@ -4,6 +4,8 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 
 ## Novedades 0.4 · sesión de pesca
 
+- **Logo de cuaderno antiguo de cuero** (tapa con textura, pespunte, cantoneras de latón, goma y carpa en pan de oro) en la cabecera y el icono.
+- **Tutorial de cuaderno antiguo**: ocho páginas de papel envejecido que pasan con animación de hoja, con dibujos a tinta que se trazan solos y anotaciones manuscritas. Se abre la primera vez y desde Ayuda o Conexión. Respeta «reducir movimiento».
 - **Tiempo** (Open-Meteo, CC BY 4.0, sin clave): presión actual y su tendencia en 3, 12 y 24 h, gráfico de 3 días atrás y previsión, aviso de cambio rápido (umbral configurable), viento con rachas y si da de cara, de espalda o lateral respecto al puesto y los spots, tabla de las próximas 24 h. Se envía la zona del puesto redondeada a ~1 km; los últimos datos quedan guardados para verlos sin conexión.
 - **Sol y luna** calculados en el móvil (sin conexión): amanecer, anochecer, fase, iluminación y salida y puesta de la luna.
 - **Sesión**: cañas (spot, vueltas al clip, montaje, cebo), botones Lancé / Cebé / Picada, temporizador de recebado con aviso (solo con la app abierta) y cebado del día por spot.
