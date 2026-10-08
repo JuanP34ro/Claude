@@ -43,7 +43,7 @@ const SOURCES={
 // Las imágenes del IGN se piden directamente (una etiqueta <img> no necesita CORS); el proxy queda para catálogos y como reserva.
 const PHOTO_SOURCES=['pnoa','flight56','flight45'];
 for(const s of Object.values(SOURCES)){s.url=s.urls[0];s.version='1.3.0';s.crs='EPSG:3857';s.catalogState='Sin consultar';s.catalogError='';s.direct=s.urls.every(u=>new URL(u).hostname==='www.ign.es');s.format=s.direct&&PHOTO_SOURCES.includes(s.id)?'image/jpeg':'image/png';}
-const defaults={base:'pnoa',photo:'flight56',topo:'mtn50',photoEnabled:true,topoEnabled:false,photoOpacity:100,topoOpacity:65,compare:'swipe',split:50,rings:true,ringsM:[200,250],wrapM:3.9,campLines:true,sessionStart:'',rebaitMin:180,pressureAlert:2,tutorialSeen:false,nightMode:false,nightLevel:85,nightAuto:false,nightLayerColors:true,bathOpacity:75,center:[...HOME.center],zoom:HOME.zoom};
+const defaults={base:'pnoa',photo:'flight56',topo:'mtn50',photoEnabled:true,topoEnabled:true,photoOpacity:50,topoOpacity:100,compare:'topoSwipe',split:50,rings:true,ringsM:[200,250],wrapM:3.9,campLines:true,sessionStart:'',rebaitMin:180,pressureAlert:2,tutorialSeen:false,nightMode:false,nightLevel:85,nightAuto:false,nightLayerColors:true,bathOpacity:75,center:[...HOME.center],zoom:HOME.zoom};
 const STORAGE='orellana-atlas-v1';let storageWorks=true;
 let state={settings:{...defaults},features:[],activeCampId:null,bath:null,updatedAt:null,lastBackupAt:null,catches:[],rods:[],baitLog:[]};
 const KNOWN_SOURCES=['manual','flight56','flight45','mtn50','minutas','badajoz','sonar','import'];
