@@ -130,7 +130,7 @@ dialog.rods-screen{width:100%;max-width:100%;height:100dvh;max-height:100dvh;mar
 dialog.rods-screen:not([open]){display:none}
 .rods-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:max(14px,env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid #3b3125;background:#000c;position:sticky;top:0;z-index:2}
 .rods-top h2{font-family:var(--script);font-weight:400;font-size:32px;line-height:1.05;margin:2px 0;color:#f3ead6}.rods-top .tiny{margin:2px 0 0}
-.rods-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:14px 14px max(20px,env(safe-area-inset-bottom));overflow:auto;flex:1}
+.rods-scroll{overflow:auto;flex:1}.rods-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:14px 14px max(20px,env(safe-area-inset-bottom))}
 .rods-empty{grid-column:1/-1;text-align:center;padding:40px 20px}
 .rod-tile{border:1px solid #4a3c28;border-radius:14px;padding:12px 14px 14px;background:linear-gradient(180deg,#1a140d,#0c0a07);box-shadow:inset 0 1px 0 #ffffff0d,0 6px 20px #0008}
 .rod-hd{display:flex;align-items:center;gap:10px}.rod-hd .icon-btn{margin-left:auto;width:36px;min-height:36px;height:36px;font-size:18px;padding:0}
@@ -145,3 +145,15 @@ dialog.rods-screen:not([open]){display:none}
 .rod-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 12px;font-size:12px}.rod-facts div{min-width:0;border-bottom:1px solid #2a2219;padding-bottom:4px}.rod-facts dt{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:var(--engraved)}.rod-facts dd{margin:1px 0 0;color:#efe6d2;overflow-wrap:anywhere}
 .rod-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.rod-actions button{min-height:46px;font-size:13px;padding:6px}.rod-actions .primary{font-size:15px;letter-spacing:.06em}
 html.night dialog.rods-screen{background:#000}
+
+.pod-view{border-bottom:1px solid #3b3125;background:#0a0907}.pod-svg{display:block;width:100%;max-height:46vh;margin:0 auto;max-width:620px}
+.pod-rod{cursor:pointer;outline:none}.pod-rod:focus-visible rect{stroke:#e2c587;stroke-opacity:1}
+.pod-tip{font-family:var(--engraved);font-size:9.5px;letter-spacing:.06em;fill:#e2c587}.pod-empty{font-family:var(--hand);font-size:16px;fill:#a99d87}
+.pod-pill{fill:#0b0a08;stroke:#8a6d3b}.pod-clock{font-family:var(--engraved);font-weight:600;font-size:13px;fill:#f3ead6;font-variant-numeric:tabular-nums}
+.pod-rod.due .pod-pill{stroke:#ff9e5a;stroke-width:1.5}.pod-rod.due .pod-clock{fill:#ff9e5a}.pod-rod.out .pod-clock{fill:#6d665c}
+.pod-rod.due .pod-led{animation:podBlink 1s steps(2,end) infinite}.pod-rod.on .pod-led{filter:drop-shadow(0 0 2px #e2c587)}
+@keyframes podBlink{50%{opacity:.15}}
+.rod-tile.flash{animation:rodFlash 1.2s ease-out}@keyframes rodFlash{0%{box-shadow:0 0 0 3px #e2c587}100%{box-shadow:0 6px 20px #0008}}
+@media(prefers-reduced-motion:reduce){.pod-rod.due .pod-led,.rod-tile.flash{animation:none}}
+.pod-tip.dim{fill:#a99d87;font-size:8.5px}
+html.night .pod-svg{filter:brightness(2.1) contrast(1.1)}
