@@ -157,3 +157,20 @@ html.night dialog.rods-screen{background:#000}
 @media(prefers-reduced-motion:reduce){.pod-rod.due .pod-led,.rod-tile.flash{animation:none}}
 .pod-tip.dim{fill:#a99d87;font-size:8.5px}
 html.night .pod-svg{filter:brightness(2.1) contrast(1.1)}
+
+/* Ficha del spot (hoja inferior sobre el mapa) */
+.spot-sheet{position:absolute;left:0;right:0;bottom:0;z-index:21;max-height:58%;overflow:auto;background:#0b0a08;border-top:1px solid #8a6d3b;border-radius:18px 18px 0 0;box-shadow:0 -10px 40px #000c;padding:6px 16px max(16px,env(safe-area-inset-bottom))}
+@media(min-width:701px){.spot-sheet{left:auto;right:76px;bottom:44px;width:400px;border-radius:16px;border:1px solid #8a6d3b;max-height:calc(100% - 90px)}}
+.spot-grab{width:44px;height:4px;border-radius:3px;background:#5a4a33;margin:2px auto 8px}
+.spot-head{display:flex;justify-content:space-between;align-items:flex-start;gap:8px}.spot-head h2{margin:2px 0 0;font-family:var(--engraved);letter-spacing:.05em;font-size:19px;color:#efe6d2;display:flex;align-items:center;gap:8px}.spot-head h2 i{width:11px;height:11px;border-radius:50%;flex:none}
+.spot-actions{display:flex;gap:7px;margin:10px 0}.spot-actions button{flex:1;min-height:38px;font-size:12px;padding:6px}
+.spot-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 12px;font-size:12px}.spot-facts div{border-bottom:1px solid #2a2219;padding-bottom:4px;min-width:0}.spot-facts dt{font-family:var(--engraved);font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted)}.spot-facts dd{margin:1px 0 0;color:#efe6d2;overflow-wrap:anywhere}
+.spot-tags{display:flex;gap:5px;flex-wrap:wrap;margin-bottom:7px}.spot-tags button{min-height:30px;font-size:11px;padding:4px 9px;border-radius:15px}.spot-tags button.active{border-color:#c9a45c;color:#e2c587;background:#2a2014}
+.spot-note .row{align-items:stretch}.spot-note textarea{min-height:46px;flex:1}.spot-note .primary{flex:none;padding:6px 14px}
+.spot-log{list-style:none;padding:0;margin:12px 0 0}.spot-log li{display:grid;grid-template-columns:78px 1fr auto;gap:8px;align-items:start;padding:8px 0;border-bottom:1px solid #2a2219;font-size:12.5px;line-height:1.45}
+.spot-log time{font-size:10.5px;color:var(--muted);padding-top:2px}.spot-log small{display:block;color:var(--muted);font-size:10.5px}.tl-tag{display:inline-block;font-family:var(--engraved);font-size:9px;letter-spacing:.1em;text-transform:uppercase;color:#e2c587;border:1px solid #5a4a33;border-radius:8px;padding:1px 6px;margin-right:6px}.tl-tag.catch{color:#ff9ec4;border-color:#7a3a55}.tl-tag.bait{color:#c7f36b;border-color:#4d5a2a}
+.tl-del{min-height:26px;width:26px;padding:0;font-size:15px}.spot-log li.tl-empty{display:block;color:var(--muted)}
+.spot-focus{animation:spotPulse 1.6s ease-in-out infinite}@keyframes spotPulse{50%{stroke-opacity:.15}}
+@media(prefers-reduced-motion:reduce){.spot-focus{animation:none}}
+html.night #mapShell .spot-sheet{background:#000!important;color:var(--nr)!important;border-color:var(--nr-dim)!important}html.night #mapShell .spot-sheet :not(.night-swatch){color:inherit!important;border-color:var(--nr-dim)!important}html.night #mapShell .spot-sheet button{background:#000!important}html.night #mapShell .spot-sheet .primary,html.night #mapShell .spot-tags button.active{background:#2a0300!important;border-color:var(--nr)!important}html.night .spot-head h2 i{filter:grayscale(1)}
+.rod-actions{grid-template-columns:repeat(3,1fr)}

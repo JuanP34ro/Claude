@@ -4,6 +4,7 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 
 ## Novedades 0.4 · sesión de pesca
 
+- **Ficha del spot**: al tocar un punto del mapa, «Ver» en la lista o «Spot» en una caña, el mapa encuadra el puesto y el spot por encima de una hoja con su resumen (distancia, vueltas, rumbo, fondo, profundidad, alineación, cañas, capturas, cebado total) y un registro de notas con fecha (observación, sondeo, cebado, picada, cambio de montaje) que se mezcla con las capturas y cebados de ese spot. Las notas viajan en las copias y al compartir puntos.
 - **Pantalla de cañas** (botón de la caña en el mapa o «Abrir pantalla de cañas» en Sesión): arriba, la vista del puesto dibujada (las cañas en perspectiva hacia el agua sobre el rod pod, con avisadores que se encienden en el agua y parpadean cuando toca recebar, y bajo cada una su reloj, spot y vueltas; al tocarla baja a su tarjeta). Debajo, una tarjeta por caña con cronómetro grande del tiempo en el agua, barra y aviso de recebado, distancia en vueltas y metros, rumbo, montaje, cebo, último cebado, capturas de la sesión, última picada y fondo del spot; botones Lancé, Cebé, PICADA, Recoger y Apuntar.
 - **Logo de cuaderno antiguo de cuero** (tapa con textura, pespunte, cantoneras de latón, goma y carpa en pan de oro) en la cabecera y el icono.
 - **Tutorial de cuaderno antiguo**: ocho páginas de papel envejecido que pasan con animación de hoja, con dibujos a tinta que se trazan solos y anotaciones manuscritas. Se abre la primera vez y desde Ayuda o Conexión. Respeta «reducir movimiento».
