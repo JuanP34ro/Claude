@@ -21,6 +21,7 @@ SOURCES = {
     "mtn50": ["https://www.ign.es/wms/primera-edicion-mtn"],
     "minutas": ["https://www.ign.es/wms/primera-edicion-mtn"],
     "badajoz": ["https://www.ideex.es/CICTEX/cartoBA45", "https://www.ideextremadura.com/CICTEX/cartoBA45", "https://mapas.ideex.es/CICTEX/cartoBA45"],
+    "caminos": ["https://mapas.ideex.es/CICTEX/catalogoCaminosPublicos", "https://www.ideex.es/CICTEX/catalogoCaminosPublicos", "https://www.ideextremadura.com/CICTEX/catalogoCaminosPublicos"],
 }
 HOSTS = frozenset({"www.ign.es", "ign.es", "www.ideex.es", "ideex.es", "www.ideextremadura.com", "ideextremadura.com", "mapas.ideex.es"})
 MAX_BYTES = 8 * 1024 * 1024

@@ -4,6 +4,7 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 
 ## Novedades 0.5 · revisión de calidad
 
+- **Caminos públicos** (Capas › 04): capa superpuesta del Catálogo de Caminos Públicos de Extremadura (CICTEX, CC BY 4.0), con opacidad y también descargable sin conexión. Solo cubre los municipios con catálogo aprobado.
 - **Mapas sin conexión** (Capas › 05): con Wi-Fi se encuadra la zona (por ejemplo, todo el embalse), se eligen capas (satélite, vuelos 1956 y 1945, MTN50, Badajoz) y detalle (rápido ≈5 m/píxel, medio ≈2,4 m, alto ≈1,2 m) con tamaño estimado, y se descarga a través del proxy de la app. Después se ve sin cobertura y gasta menos datos con cobertura. Las capas recuerdan su configuración para funcionar sin leer el catálogo. Licencias: IGN y CICTEX (Junta de Extremadura) publican con CC BY 4.0; se mantiene la atribución.
 - Planos (MTN50, minutas, Badajoz) en JPEG cuando el servicio lo anuncia: mucho menos peso.
 - `mapas.ideex.es` como servidor alternativo para el vuelo de 1945 y el plano de Badajoz.

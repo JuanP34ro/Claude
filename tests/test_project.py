@@ -105,6 +105,8 @@ class ProxyTests(unittest.TestCase):
         self.assertEqual(operation, 'getmap')
 
     def test_capabilities(self):
+        _, op = build_url('source=caminos&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0')
+        self.assertEqual(op, 'getcapabilities')
         _, operation = build_url('source=flight45&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0')
         self.assertEqual(operation, 'getcapabilities')
 

@@ -188,3 +188,4 @@ dialog.rods-screen::backdrop{backdrop-filter:none;background:#000}
 #rodsAwake{width:42px;padding:0;font-size:17px}#rodsAwake.active{color:#e2c587;border-color:#c9a45c;background:#2a2014}
 .form-grid>*{min-width:0}.form-grid input,.form-grid select{min-width:0;max-width:100%}
 .off-layers{display:grid;gap:4px;margin-top:10px}#offProgress{margin:8px 0}
+#roadsRaster{z-index:3}html.night #roadsRaster{filter:grayscale(1) brightness(1.2) sepia(1) saturate(10) hue-rotate(-28deg)}
