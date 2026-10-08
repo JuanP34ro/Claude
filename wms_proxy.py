@@ -6,6 +6,7 @@ HTTPS verificado, respuesta limitada, timeout y redirecciones restringidas.
 from __future__ import annotations
 import json
 import math
+import re
 import threading
 import time
 import urllib.error
@@ -25,6 +26,10 @@ SOURCES = {
 }
 HOSTS = frozenset({"www.ign.es", "ign.es", "www.ideex.es", "ideex.es", "www.ideextremadura.com", "ideextremadura.com", "mapas.ideex.es"})
 MAX_BYTES = 8 * 1024 * 1024
+# GetFeatureInfo («¿qué camino es este?») solo para el catálogo de caminos públicos, con parámetros acotados.
+QUERYABLE = frozenset({"caminos"})
+INFO_FORMATS = frozenset({"text/plain", "text/html", "text/xml", "application/xml", "application/vnd.ogc.gml", "application/vnd.ogc.gml/3.1.1", "application/json", "application/geo+json"})
+INFO_BYTES = 256 * 1024
 _CAPS_CACHE: dict[str, tuple[float, bytes, str]] = {}
 _LOCK = threading.Lock()
 _GATE = threading.BoundedSemaphore(8)
@@ -54,20 +59,24 @@ def build_url(query: str) -> tuple[str, str]:
     q = {k.upper(): v for k, v in values.items()}
     if len(q) != len(values):
         raise ValueError("Parámetro duplicado")
+    operation = q.get("REQUEST", "").lower()
     allowed = {"SERVICE", "REQUEST", "VERSION", "LAYERS", "STYLES", "FORMAT", "TRANSPARENT", "WIDTH", "HEIGHT", "BBOX", "CRS", "SRS"}
+    if operation == "getfeatureinfo":
+        allowed |= {"QUERY_LAYERS", "INFO_FORMAT", "FEATURE_COUNT", "I", "J", "X", "Y"}
     if set(q) - allowed:
         raise ValueError("Parámetro WMS no permitido")
     if q.get("SERVICE", "").upper() != "WMS":
         raise ValueError("Solo se permite el servicio WMS")
-    operation = q.get("REQUEST", "").lower()
-    if operation not in {"getmap", "getcapabilities"}:
+    if operation not in {"getmap", "getcapabilities", "getfeatureinfo"}:
         raise ValueError("Operación no permitida")
+    if operation == "getfeatureinfo" and source not in QUERYABLE:
+        raise ValueError("Esta fuente no admite consultas")
     if operation == "getcapabilities" and set(q) - {"SERVICE", "REQUEST", "VERSION"}:
         raise ValueError("GetCapabilities solo admite SERVICE, REQUEST y VERSION")
     if q.get("VERSION") not in {"1.1.1", "1.3.0"}:
         raise ValueError("Versión WMS no permitida")
-    if operation == "getmap":
-        if q.get("FORMAT") not in {"image/png", "image/jpeg"}:
+    if operation in {"getmap", "getfeatureinfo"}:
+        if q.get("FORMAT") not in {"image/png", "image/jpeg"} and not (operation == "getfeatureinfo" and "FORMAT" not in q):
             raise ValueError("Formato de imagen no permitido")
         if q.get("CRS", q.get("SRS")) not in {"EPSG:3857", "EPSG:900913", "EPSG:102100"}:
             raise ValueError("Sistema de referencia no permitido")
@@ -81,6 +90,19 @@ def build_url(query: str) -> tuple[str, str]:
             raise ValueError("Extensión invertida")
         if not q.get("LAYERS") or len(q["LAYERS"]) > 500 or len(q.get("STYLES", "")) > 200:
             raise ValueError("Nombre de capa no válido")
+    if operation == "getfeatureinfo":
+        if q.get("INFO_FORMAT") not in INFO_FORMATS:
+            raise ValueError("Formato de consulta no permitido")
+        if not q.get("QUERY_LAYERS") or len(q["QUERY_LAYERS"]) > 500:
+            raise ValueError("Capa de consulta no válida")
+        keys = ("I", "J") if q["VERSION"] == "1.3.0" else ("X", "Y")
+        if set(q) & ({"I", "J", "X", "Y"} - set(keys)):
+            raise ValueError("Coordenadas de consulta incorrectas para la versión WMS")
+        for key, size in zip(keys, ("WIDTH", "HEIGHT")):
+            if not 0 <= int(q.get(key, "-1")) < int(q[size]):
+                raise ValueError("Píxel de consulta fuera de la imagen")
+        if not 1 <= int(q.get("FEATURE_COUNT", "1")) <= 10:
+            raise ValueError("Número de resultados fuera del límite")
     return SOURCES[source][endpoint] + "?" + urllib.parse.urlencode(q), operation
 
 
@@ -98,8 +120,8 @@ def fetch_wms(url: str, operation: str) -> tuple[bytes, str]:
         with opener.open(req, timeout=16) as response:
             data = response.read(MAX_BYTES + 1)
             content_type = response.headers.get("Content-Type", "application/octet-stream")
-        if len(data) > MAX_BYTES:
-            raise ValueError("La respuesta supera el límite de 8 MB")
+        if len(data) > MAX_BYTES or (operation == "getfeatureinfo" and len(data) > INFO_BYTES):
+            raise ValueError("La respuesta supera el límite de tamaño")
         if operation == "getcapabilities":
             if b"<" not in data[:300]:
                 raise ValueError("El proveedor no devuelve un catálogo XML")
@@ -142,10 +164,17 @@ def serve_wms(handler: BaseHTTPRequestHandler):
             send_json(handler, 502, {"error": "La fuente WMS no devolvió una imagen", "detail": kind[:60]})
             return
         content_type, cache = kind, "public, max-age=86400, s-maxage=604800"
+    elif operation == "getfeatureinfo":
+        # La ficha de un camino llega en texto, GML, JSON o HTML del proveedor: se entrega como datos opacos
+        # (nunca como página) y la app la lee como texto. El tipo original va aparte, saneado.
+        info_type = re.sub(r"[^A-Za-z0-9/.+=; -]", "", content_type)[:100]
+        content_type, cache = "application/octet-stream", "public, max-age=3600, s-maxage=86400"
     else:
         content_type, cache = "application/xml; charset=utf-8", "public, max-age=3600, s-maxage=86400"
     handler.send_response(200)
     handler.send_header("Content-Type", content_type)
+    if operation == "getfeatureinfo":
+        handler.send_header("X-WMS-Content-Type", info_type)
     handler.send_header("Content-Length", str(len(data)))
     handler.send_header("Cache-Control", cache)
     handler.send_header("Content-Security-Policy", "default-src 'none'; sandbox")

@@ -223,6 +223,10 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .spot-facts div{border-bottom:1px solid var(--line);padding-bottom:5px;min-width:0}
 .spot-facts dt{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}
 .spot-facts dd{margin:2px 0 0;color:#efe6d2;overflow-wrap:anywhere}
+.path-sheet .status{margin:2px 0 10px}.path-sheet .eyebrow{color:var(--gold)}
+.path-other{display:flex;flex-wrap:wrap;align-items:center;gap:6px;font-size:13px;color:var(--muted);margin:0 0 12px}.path-other button{min-height:36px;padding:4px 11px;font-size:13px;border-radius:18px}
+.path-data{margin:0 0 12px;border-top:1px solid var(--line);padding-top:6px}.path-data summary{cursor:pointer;font-size:13.5px;font-weight:600;color:var(--gold);padding:6px 0;min-height:34px}
+.path-data dl{display:grid;grid-template-columns:minmax(90px,auto) 1fr;gap:5px 12px;margin:6px 0 0;font-size:13px}.path-data dt{color:var(--muted);overflow-wrap:anywhere}.path-data dd{margin:0;color:#efe6d2;overflow-wrap:anywhere}
 .spot-tags{display:flex;gap:6px;flex-wrap:wrap;margin-bottom:8px}
 .spot-tags button{min-height:38px;font-size:13px;padding:6px 12px;border-radius:19px}
 .spot-tags button.active{border-color:#c9a45c;color:var(--gold);background:#2a2014}

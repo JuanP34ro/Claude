@@ -91,6 +91,15 @@ class ServerTests(unittest.TestCase):
             urllib.request.urlopen(self.base + '/api/wms?source=external&url=http://127.0.0.1/', timeout=3)
         self.assertEqual(error.exception.code, 400)
 
+class FakeHandler:
+    def __init__(self, path):
+        self.path, self.status, self.headers, self.body = path, None, {}, b''
+        self.wfile = self
+    def send_response(self, code): self.status = code
+    def send_header(self, k, v): self.headers[k] = v
+    def end_headers(self): pass
+    def write(self, b): self.body += b
+
 class ProxyTests(unittest.TestCase):
     def query(self, **kwargs):
         params = dict(source='pnoa', SERVICE='WMS', REQUEST='GetMap', VERSION='1.3.0',
@@ -123,14 +132,7 @@ class ProxyTests(unittest.TestCase):
 
     def test_proxy_only_serves_images_for_getmap(self):
         import wms_proxy
-        class H:
-            def __init__(self, path):
-                self.path, self.status, self.headers, self.body = path, None, {}, b''
-                self.wfile = self
-            def send_response(self, code): self.status = code
-            def send_header(self, k, v): self.headers[k] = v
-            def end_headers(self): pass
-            def write(self, b): self.body += b
+        H = FakeHandler
         q = '/api/wms?' + ProxyTests.query(self)
         with patch('wms_proxy.fetch_wms', return_value=(b'<html><script>x</script></html>', 'text/html')):
             h = H(q); wms_proxy.serve_wms(h)
@@ -143,6 +145,38 @@ class ProxyTests(unittest.TestCase):
         with patch('wms_proxy.fetch_wms', return_value=(b'<WMS_Capabilities/>', 'text/html')):
             h = H('/api/wms?source=pnoa&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0'); wms_proxy.serve_wms(h)
         self.assertEqual(h.headers['Content-Type'], 'application/xml; charset=utf-8')
+
+    def info(self, **kwargs):
+        params = dict(source='caminos', SERVICE='WMS', REQUEST='GetFeatureInfo', VERSION='1.3.0',
+                      LAYERS='CATALOGOCAMINOS_TOTAL', QUERY_LAYERS='CATALOGOCAMINOS_TOTAL', STYLES='', FORMAT='image/png',
+                      TRANSPARENT='TRUE', WIDTH='512', HEIGHT='512', CRS='EPSG:900913', BBOX='-610000,4700000,-600000,4710000',
+                      I='200', J='311', INFO_FORMAT='text/plain', FEATURE_COUNT='5')
+        params.update(kwargs)
+        return urllib.parse.urlencode({k: v for k, v in params.items() if v is not None})
+
+    def test_featureinfo_only_for_public_paths(self):
+        url, operation = build_url(self.info())
+        self.assertEqual(operation, 'getfeatureinfo')
+        self.assertTrue(url.startswith('https://mapas.ideex.es/CICTEX/catalogoCaminosPublicos?'))
+        _, operation = build_url(self.info(VERSION='1.1.1', CRS=None, SRS='EPSG:900913', I=None, J=None, X='0', Y='511', FORMAT=None))
+        self.assertEqual(operation, 'getfeatureinfo')
+        for change in [dict(source='pnoa'), dict(source='flight45'), dict(I='512'), dict(J=None), dict(I='-1'), dict(I='1e2'),
+                       dict(X='3'), dict(INFO_FORMAT='text/javascript'), dict(FEATURE_COUNT='50'), dict(QUERY_LAYERS=''),
+                       dict(FORMAT='text/html'), dict(CRS='EPSG:4326'), dict(url='https://localhost/')]:
+            with self.subTest(change=change), self.assertRaises(ValueError):
+                build_url(self.info(**change))
+        with self.assertRaises(ValueError):
+            build_url(self.query(QUERY_LAYERS='x'))
+
+    def test_featureinfo_served_as_opaque_data(self):
+        import wms_proxy
+        with patch('wms_proxy.fetch_wms', return_value=(b'<html><script>alert(1)</script></html>', 'text/html; charset=ISO-8859-1\r\nSet-Cookie: x')):
+            h = FakeHandler('/api/wms?' + self.info(INFO_FORMAT='text/html')); wms_proxy.serve_wms(h)
+        self.assertEqual((h.status, h.headers['Content-Type']), (200, 'application/octet-stream'))
+        self.assertTrue(h.headers['X-WMS-Content-Type'].startswith('text/html; charset=ISO-8859-1'))
+        self.assertFalse(any(c in h.headers['X-WMS-Content-Type'] for c in '\r\n:'))
+        self.assertIn('sandbox', h.headers['Content-Security-Policy'])
+        self.assertEqual(h.headers['X-Content-Type-Options'], 'nosniff')
 
     def test_duplicate_params(self):
         for suffix in ['&WIDTH=12', '&width=12']:
