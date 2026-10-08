@@ -412,7 +412,7 @@ dialog[open]::backdrop{animation:fadeIn .25s ease-out}
 /* ===== 9. Tutorial: cuaderno antiguo con páginas que pasan y dibujos a tinta ===== */
 dialog.tutorial{background:transparent;border:0;box-shadow:none;width:min(560px,calc(100% - 20px));height:min(700px,calc(100dvh - 24px));max-height:none;overflow:visible;padding:0}
 dialog.tutorial[open]{animation:tutOpen .55s var(--out)}
-dialog.tutorial::backdrop{background:#0b0805e6}
+dialog.tutorial::backdrop{background:#0b0805ee;-webkit-backdrop-filter:none;backdrop-filter:none}
 .tut-book{position:absolute;inset:0 0 62px 0;perspective:1700px;perspective-origin:0 50%;touch-action:pan-y}
 .tut-page{position:absolute;inset:0;display:none;flex-direction:column;overflow:hidden;padding:22px 22px 30px 30px;border-radius:3px 12px 12px 3px;color:#2e1d0e;
  background:radial-gradient(ellipse at 82% 12%,#b78d4a33,transparent 32%),radial-gradient(ellipse at 15% 88%,#8a5a2433,transparent 38%),linear-gradient(90deg,#9c7a46 0,#d9c290 2.5%,#efe1bd 9%,#f3e7c8 55%,#e8d5a8 100%);
@@ -428,21 +428,16 @@ dialog.tutorial::backdrop{background:#0b0805e6}
 .tut-art .ink{fill:none;stroke:var(--ink);stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.tut-art .thin,.tut-art .thin *{stroke-width:1.05}.tut-art g.ink *{fill:none;stroke:inherit}
 .tut-art .hand{font-family:var(--hand);font-size:11.5px;fill:#8b3a1a}.tut-art .hand.big{font-size:15px;fill:#6e2a12}.tut-art .stamp-text{fill:#a3271a;letter-spacing:.08em}
 .tut-art .wash{opacity:.22}
-.tut-page.draw .tut-title{clip-path:inset(-10px 100% -10px 0);animation:tutWrite 1.15s cubic-bezier(.5,.1,.5,1) .15s forwards}
-.tut-page.draw .ink,.tut-page.draw .ink *{stroke-dasharray:1;stroke-dashoffset:1;animation:tutInk 1.3s ease-out forwards;animation-delay:var(--d,0s)}
-.tut-page.draw .hand,.tut-page.draw .sw,.tut-page.draw .wash{opacity:0;animation:tutFade .7s ease-out forwards;animation-delay:var(--d,0s)}.tut-page.draw .wash{animation-name:tutWash}
-.tut-page.draw .tut-text .w{opacity:0;animation:tutWord .55s ease-out forwards;animation-delay:calc(.75s + var(--i)*48ms)}
-.tut-page.draw .tut-stamp{animation:tutStamp .5s cubic-bezier(.2,1.5,.35,1) 2.35s both;transform-box:fill-box;transform-origin:center}
 .tut-leaf{position:absolute;inset:0;z-index:6;transform-origin:0 50%;transform-style:preserve-3d;pointer-events:none;will-change:transform}
 .tut-leaf>.tut-page{display:flex;-webkit-backface-visibility:hidden;backface-visibility:hidden}
 .leaf-back{position:absolute;inset:0;overflow:hidden;transform:rotateY(180deg);-webkit-backface-visibility:hidden;backface-visibility:hidden;border-radius:12px 3px 3px 12px;background:radial-gradient(ellipse at 20% 15%,#b78d4a2e,transparent 35%),linear-gradient(270deg,#9c7a46 0,#d6bf8c 2.5%,#eadab3 9%,#efe2c0 55%,#e2cd9c 100%);box-shadow:inset 0 0 45px #7a4f1c66}
-.leaf-back .tut-page{display:flex;transform:scaleX(-1);opacity:.085;filter:blur(.5px);background:none;box-shadow:none}
+.leaf-back .tut-page{display:flex;transform:scaleX(-1);opacity:.085;background:none;box-shadow:none}
 .leaf-back .tut-page::before,.leaf-back .tut-page::after{display:none}
 .leaf-shade{position:absolute;inset:0;pointer-events:none;border-radius:inherit;opacity:0;z-index:5}
 .tut-page>.leaf-shade{background:linear-gradient(90deg,#3b240e10 0%,#3b240e30 45%,#24140690 100%)}
 .leaf-back>.leaf-shade{background:linear-gradient(270deg,#24140680 0%,#3b240e22 50%,#0000 100%)}
-.leaf-gloss{position:absolute;top:0;bottom:0;width:38%;pointer-events:none;z-index:6;background:linear-gradient(90deg,#fff0,#fff8 50%,#fff0);mix-blend-mode:soft-light;opacity:0}
-.tut-under{position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:3px 12px 12px 3px}
+.tut-dim{position:absolute;inset:0;z-index:5;pointer-events:none;border-radius:3px 12px 12px 3px;background:#180c03;opacity:0}
+.tut-cast{position:absolute;top:0;bottom:0;left:0;width:84px;z-index:5;pointer-events:none;background:linear-gradient(90deg,rgba(24,12,3,.5),rgba(24,12,3,0));opacity:0}
 .tut-nav{position:absolute;left:0;right:0;bottom:0;height:54px;display:flex;align-items:center;justify-content:space-between;gap:8px}
 .tut-nav button{min-height:44px}.tut-nav .ghost{color:var(--gold);border-color:#5a4a33}#tutPrev{width:44px;font-size:21px;padding:0}
 .tut-dots{display:flex;gap:5px;flex-wrap:nowrap;justify-content:center;min-width:0;flex:1}.tut-dots i{width:7px;height:7px;border-radius:50%;background:#5a4a33;transition:transform .3s var(--spring),background .3s}.tut-dots i.on{background:var(--gold);transform:scale(1.35)}
@@ -457,15 +452,25 @@ html.night{--text:#fff;--muted:#e6e6e6;--nr:#ff3322;--nr-dim:#6b120a;
  --c-bg:#000;--c-solid:#000;--c-edge:#5a0d06;--c-edge2:#6b120a;--c-fg:#ff3322;--c-muted:#d42b1d;--c-accent:#ff3322;--c-on-bg:#2a0300;--c-on-edge:#ff3322;--c-shadow:none;background:#000}
 html.night body{background:#000}
 html.night :is(header,.screen,.sheet,.spot-sheet){isolation:isolate}
-html.night :is(header,.screen,.sheet,.spot-sheet,dialog)>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night :is(header,.screen,.sheet,.spot-sheet,dialog:not(.tutorial))>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
 html.night :is(header,.screen,.sheet,.spot-sheet)::after{content:"";position:absolute;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:1000;border-radius:inherit}
 html.night :is(.screen,.sheet,.spot-sheet){background:#000}
-html.night body::before,html.night dialog::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
-html.night dialog::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
+html.night body::before,html.night dialog:not(.tutorial)::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
+html.night dialog:not(.tutorial)::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
 html.night dialog::backdrop{background:#000}
-html.night dialog{box-shadow:none;border-color:#555;clip-path:inset(0 round 18px)}
-html.night dialog.tutorial{clip-path:none}
+html.night dialog:not(.tutorial){box-shadow:none;border-color:#555;clip-path:inset(0 round 18px)}
+/* Tutorial de noche: papel oscuro y tinta roja, sin filtros ni capas de mezcla (el texto sigue nítido y la pantalla no se ilumina) */
+html.night dialog.tutorial :is(.tut-book,.tut-nav){opacity:calc(1 - var(--night-dim,.15))}
+html.night :is(.tut-page,.leaf-back){background:radial-gradient(ellipse at 80% 8%,#260300,transparent 45%),linear-gradient(90deg,#1a0200 0,#0c0100 7%,#060000 100%);box-shadow:inset 0 0 40px #000,0 0 0 1px #3a0600;color:#ff3322}
+html.night .tut-page::before{display:none}html.night .tut-page::after{background:#5a0d06}
+html.night :is(.tut-title,.tut-text,.tut-text b){color:#ff3322}html.night :is(.tut-kicker,.tut-folio){color:#c42818}
+html.night .tut-art .ink{stroke:#ff3322}html.night .tut-art :is(.hand,.stamp-text){fill:#e02a1a}html.night .tut-art .wash{fill:#ff3322}
+html.night .tut-art .sw{fill:#000;stroke:#ff3322}html.night .tut-art use{display:none}
+html.night :is(.tut-dim,.tut-cast,.leaf-shade){display:none}html.night .leaf-back .tut-page{opacity:.14}
+html.night .tut-nav .ghost{color:var(--nr);border-color:var(--nr-dim)}html.night .tut-nav .primary{background:#2a0300;color:var(--nr);border-color:var(--nr);box-shadow:none;text-shadow:none}
+html.night .tut-dots i{background:#4a0a04}html.night .tut-dots i.on{background:var(--nr)}
 html.night :is(.tiny,.note,.meta,.status,.stat-row small,.screen-meta,.catch-label,.field>label,.spot-log time,.spot-log small){color:#fff}
+html.night :focus-visible{outline-color:var(--nr)}
 html.night .wx-tick{fill:#fff}
 html.night :is(.point-card,.layer-card,.rod-tile,.stat-row div,.keypad button,.hint,.pod-view,input,select,textarea){background:#000}
 html.night .tabbar{background:#000;border-top-color:#3a0800;box-shadow:none}
@@ -513,7 +518,7 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 @keyframes riseIn{from{opacity:0;translate:0 18px}}
 @keyframes badgeIn{from{opacity:0;scale:.85}}
 @keyframes hintIn{from{opacity:0;transform:translateY(12px)}}
-@keyframes dlgIn{from{opacity:0;transform:translateY(18px) scale(.97)}}
+@keyframes dlgIn{from{opacity:0;transform:translateY(18px)}}
 @keyframes fadeIn{from{opacity:0}}
 @keyframes toastIn{from{opacity:0;translate:0 16px}}
 @keyframes bump{50%{transform:scale(1.04)}}
@@ -523,13 +528,7 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 @keyframes rodFlash{0%{box-shadow:0 0 0 3px #e2c587,0 0 30px #e2c58799}100%{box-shadow:0 6px 20px #0008}}
 @keyframes stampIn{0%{opacity:0;transform:rotate(-26deg) scale(2.7)}55%{opacity:1;transform:rotate(-6deg) scale(.93)}100%{opacity:1;transform:rotate(-8deg) scale(1)}}
 @keyframes stampOut{to{opacity:0;transform:rotate(-8deg) scale(1.05)}}
-@keyframes tutOpen{from{opacity:0;transform:translateY(24px) rotate(-1.5deg) scale(.96)}}
-@keyframes tutWrite{to{clip-path:inset(-10px -10px -10px 0)}}
-@keyframes tutInk{to{stroke-dashoffset:0}}@keyframes tutFade{to{opacity:1}}@keyframes tutWash{to{opacity:.22}}
-@keyframes tutWord{from{opacity:0;filter:blur(2.5px)}to{opacity:1;filter:none}}
-@keyframes tutStamp{from{opacity:0;transform:scale(2.2) rotate(-12deg)}to{opacity:1;transform:none}}
+@keyframes tutOpen{from{opacity:0;transform:translateY(18px)}}
 @media(prefers-reduced-motion:reduce){
  *,*::before,*::after{animation:none!important;transition:none!important}
- .tut-page.draw .ink,.tut-page.draw .ink *{stroke-dashoffset:0}
- .tut-page.draw :is(.hand,.sw,.tut-text .w){opacity:1}.tut-page.draw .wash{opacity:.22}.tut-page.draw .tut-title{clip-path:none}
 }
