@@ -42,6 +42,12 @@ def main():
                 page.route('**/*', routing)
                 page.goto(base, wait_until='domcontentloaded')
                 page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.6'")
+                caps = ('<?xml version="1.0"?><WMS_Capabilities version="1.3.0" xmlns="http://www.opengis.net/wms"><Capability><Layer><CRS>EPSG:3857</CRS>'
+                        '<Layer><Name>grupo</Name><Title>G</Title><MaxScaleDenominator>50000</MaxScaleDenominator><Layer><Name>a</Name><Title>A</Title><MaxScaleDenominator>80000</MaxScaleDenominator></Layer><Layer><Name>b</Name><Title>B</Title></Layer></Layer>'
+                        '<Layer><Name>libre</Name><Title>L</Title><Layer><Name>c</Name><Title>C</Title><MinScaleDenominator>1000</MinScaleDenominator></Layer><Layer><Name>d</Name><Title>D</Title></Layer></Layer></Layer></Capability></WMS_Capabilities>')
+                layers = {l['name']: l for l in page.evaluate('x => window.OrellanaAtlas.parseCapabilities(x).layers', caps)}
+                assert layers['a']['maxScale'] == 80000 and layers['b']['maxScale'] == 50000 and layers['grupo']['maxScale'] == 80000, layers
+                assert layers['c']['minScale'] == 1000 and layers['libre']['minScale'] is None and layers['libre']['maxScale'] is None, layers
                 page.locator('#tutorial').wait_for(state='visible')
                 assert page.locator('#tutorial .tut-page.active').count() == 1, 'Tutorial did not open on first run'
                 page.locator('#tutNext').click()
@@ -50,6 +56,7 @@ def main():
                 page.locator('#tutSkip').click()
                 assert page.evaluate('window.OrellanaAtlas.getState().settings.tutorialSeen'), 'Tutorial not marked as seen'
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Horizontal overflow'
+                assert page.locator('#roadsBadge').is_hidden(), 'Paths badge shown while the paths layer is off'
                 assert page.locator('link[rel="apple-touch-icon"]').get_attribute('href') == 'apple-touch-icon.png'
                 page.locator('[data-go="spots"]').click()
                 assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'spots', 'Spots tab did not open'
@@ -87,7 +94,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, tutorial, no overflow, tabs, point form, save/reload, quick catch, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, quick catch, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:
