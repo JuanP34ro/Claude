@@ -13,6 +13,8 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 - **Tutorial de doce páginas** (nueva: «¡Picada!») con paso de hoja real: la página gira sobre el lomo, deja ver el dorso con la tinta transparentada y proyecta sombra; se puede pasar arrastrando con el dedo. Los títulos y el texto se escriben solos. Primera visita a cada pantalla: una nota breve que se puede descartar o abrir en el tutorial.
 - **Legibilidad**: letra grabada solo en títulos; textos, botones y datos en letra de sistema, más grandes; botones de al menos 44 px; interruptores en lugar de casillas en los ajustes.
 - Corregido: el dibujo del horizonte del rod pod tenía un trazado SVG mal formado; al editar una captura cuya caña o spot se borró, ya no se pierde su nombre.
+- **Imágenes del mapa que fallan**: se vuelven a pedir solas dos veces (a los 2 y 6 s) mientras sigan en pantalla; antes quedaban en blanco hasta mover el mapa. Todo lo demás (peticiones en paralelo, proxy y región de Vercel) sigue como en la primera 0.6: un intento previo de limitar peticiones, poner un zoom mínimo a los caminos y mover las funciones a París empeoró la carga de los caminos y se deshizo.
+- **Tutorial nítido**: las palabras aparecen sin desenfoque y la hoja gira sin balanceo; de noche, página oscura con tinta roja.
 
 ### Volver a la versión anterior
 
