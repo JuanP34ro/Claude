@@ -61,6 +61,8 @@ def build_url(query: str) -> tuple[str, str]:
     operation = q.get("REQUEST", "").lower()
     if operation not in {"getmap", "getcapabilities"}:
         raise ValueError("Operación no permitida")
+    if operation == "getcapabilities" and set(q) - {"SERVICE", "REQUEST", "VERSION"}:
+        raise ValueError("GetCapabilities solo admite SERVICE, REQUEST y VERSION")
     if q.get("VERSION") not in {"1.1.1", "1.3.0"}:
         raise ValueError("Versión WMS no permitida")
     if operation == "getmap":
@@ -90,7 +92,7 @@ def fetch_wms(url: str, operation: str) -> tuple[bytes, str]:
     if not _GATE.acquire(timeout=3):
         raise TimeoutError("Demasiadas peticiones simultáneas; reintenta en unos segundos")
     try:
-        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.4 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
+        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.5 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
         opener = urllib.request.build_opener(RestrictedRedirect())
         with opener.open(req, timeout=16) as response:
             data = response.read(MAX_BYTES + 1)
@@ -131,10 +133,21 @@ def serve_wms(handler: BaseHTTPRequestHandler):
     except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
         send_json(handler, 502, {"error": "La fuente WMS no respondió correctamente", "detail": str(exc)[:220]})
         return
+    # Nunca se reenvía el tipo de contenido del proveedor tal cual: un error HTML/XML con
+    # parámetros reflejados no debe servirse desde el origen de la app.
+    if operation == "getmap":
+        kind = content_type.split(";")[0].strip().lower()
+        if kind not in {"image/png", "image/jpeg"}:
+            send_json(handler, 502, {"error": "La fuente WMS no devolvió una imagen", "detail": kind[:60]})
+            return
+        content_type, cache = kind, "public, max-age=86400, s-maxage=604800"
+    else:
+        content_type, cache = "application/xml; charset=utf-8", "public, max-age=3600, s-maxage=86400"
     handler.send_response(200)
     handler.send_header("Content-Type", content_type)
     handler.send_header("Content-Length", str(len(data)))
-    handler.send_header("Cache-Control", "public, max-age=3600, s-maxage=86400" if operation == "getcapabilities" else "public, max-age=86400, s-maxage=604800")
+    handler.send_header("Cache-Control", cache)
+    handler.send_header("Content-Security-Policy", "default-src 'none'; sandbox")
     handler.send_header("X-Content-Type-Options", "nosniff")
     handler.end_headers()
     try:

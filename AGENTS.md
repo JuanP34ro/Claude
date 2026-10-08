@@ -12,6 +12,7 @@ Editar `app.js`, `app.css` e `index.template.html`; `index.html` es un artefacto
 `server.py`: biblioteca estándar Python 3.10+, solo loopback por defecto; `--lan` es opt-in.
 `wms_proxy.py`: proxy HTTPS restringido a fuentes IGN/IDEEX predefinidas.
 `api/`: adaptadores de Vercel. No exponer el servidor local de desarrollo a Internet.
+`sw.js`: service worker solo para abrir la app sin conexión (HTML, manifiesto, iconos). No cachear mapas, `/api/` ni Open-Meteo.
 
 ## Comandos
 - Reconstruir: `python build.py`.

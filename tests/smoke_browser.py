@@ -41,7 +41,7 @@ def main():
                     return route.continue_()
                 page.route('**/*', routing)
                 page.goto(base, wait_until='domcontentloaded')
-                page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.4'")
+                page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.5'")
                 page.locator('#tutorial').wait_for(state='visible')
                 assert page.locator('#tutorial .tut-page.active').count() == 1, 'Tutorial did not open on first run'
                 page.locator('#tutNext').click()
@@ -72,8 +72,14 @@ def main():
                 with page.expect_download() as download:
                     page.locator('#backupBtn').click()
                 assert download.value.suggested_filename.endswith('.json')
+                page.evaluate('navigator.serviceWorker.ready.then(() => true)')
+                page.wait_for_timeout(800)
+                context.set_offline(True)
+                page.reload(wait_until='domcontentloaded')
+                page.wait_for_function('window.OrellanaAtlas', timeout=10000)
+                context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, tutorial, no overflow, point form, save/reload, help, export; maps unavailable by design')
+                print(f'PASS {name}: startup, tutorial, no overflow, point form, save/reload, help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:

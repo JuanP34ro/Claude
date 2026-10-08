@@ -58,7 +58,7 @@ class ServerTests(unittest.TestCase):
         with urllib.request.urlopen(self.base + '/api/health', timeout=3) as response:
             data = json.load(response)
             self.assertEqual(data['app'], 'orellana-atlas')
-            self.assertEqual(data['version'], '0.4')
+            self.assertEqual(data['version'], '0.5')
             self.assertTrue(data['proxy'])
             self.assertFalse(data['lan'])
 
@@ -114,6 +114,33 @@ class ProxyTests(unittest.TestCase):
                        dict(BBOX='5,6,1,2'), dict(url='https://localhost/')]:
             with self.subTest(change=change), self.assertRaises(ValueError):
                 build_url(self.query(**change))
+
+    def test_capabilities_rejects_map_params(self):
+        with self.assertRaises(ValueError):
+            build_url('source=pnoa&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0&LAYERS=x')
+
+    def test_proxy_only_serves_images_for_getmap(self):
+        import wms_proxy
+        class H:
+            def __init__(self, path):
+                self.path, self.status, self.headers, self.body = path, None, {}, b''
+                self.wfile = self
+            def send_response(self, code): self.status = code
+            def send_header(self, k, v): self.headers[k] = v
+            def end_headers(self): pass
+            def write(self, b): self.body += b
+        q = '/api/wms?' + ProxyTests.query(self)
+        with patch('wms_proxy.fetch_wms', return_value=(b'<html><script>x</script></html>', 'text/html')):
+            h = H(q); wms_proxy.serve_wms(h)
+        self.assertEqual(h.status, 502)
+        self.assertNotIn(b'<script>', h.body)
+        with patch('wms_proxy.fetch_wms', return_value=(b'\x89PNG', 'image/png; charset=binary')):
+            h = H(q); wms_proxy.serve_wms(h)
+        self.assertEqual((h.status, h.headers['Content-Type']), (200, 'image/png'))
+        self.assertIn('sandbox', h.headers['Content-Security-Policy'])
+        with patch('wms_proxy.fetch_wms', return_value=(b'<WMS_Capabilities/>', 'text/html')):
+            h = H('/api/wms?source=pnoa&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0'); wms_proxy.serve_wms(h)
+        self.assertEqual(h.headers['Content-Type'], 'application/xml; charset=utf-8')
 
     def test_duplicate_params(self):
         for suffix in ['&WIDTH=12', '&width=12']:

@@ -1,6 +1,23 @@
-# Carp Field Notes · versión 0.4
+# Carp Field Notes · versión 0.5
 
 Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los identificadores internos (`orellana-atlas` en el almacenamiento, las copias y la API) se mantienen para conservar los datos guardados.
+
+## Novedades 0.5 · revisión de calidad
+
+- **Abre sin cobertura**: un service worker mínimo (`sw.js`) guarda solo la app (HTML, manifiesto e iconos), con red primero. Nunca guarda mapas, `/api/` ni el tiempo.
+- **Avisos visibles** también encima de fichas y pantallas abiertas.
+- **Sin toques perdidos** en «Mis cañas» (el reloj y la barra se actualizan sin rehacer los botones), en los puntos del mapa y con la brújula activa (redibujo limitado a cambios de 1° y unas 12 veces por segundo).
+- **Importar no borra notas**: al fusionar, el registro de notas de cada spot se une; las fechas futuras de archivos externos se limitan a hoy.
+- **Compartir** pregunta si incluir tus notas privadas de los spots.
+- **GPX** con identificador y notas propias: reimportar no duplica ni ensucia las notas.
+- **Historial** conserva el nombre de la caña y del spot aunque se borren.
+- **Tiempo en UTC**: sin desfase con el cambio de hora del 25 de octubre.
+- **GPS** no se apaga por un aviso puntual de falta de señal.
+- **Modo noche automático** respeta el cambio manual al reabrir la app; restaurar una copia refresca todos los ajustes; la capa batimétrica de una copia pide confirmación.
+- **Recebado**: pitido además del aviso, y opción ☀︎ para mantener la pantalla encendida en «Mis cañas».
+- **Rendimiento**: puntos del mapa en rojo directo de noche (sin filtros SVG), pulso del spot limitado, teselas fallidas reintentadas, memoria de teselas acotada y liberada al ocultar capas, comprobación del proxy sin bloquear el arranque.
+- **iPhone**: sin zoom al escribir (texto de 16 px), respeto de la barra inferior y la muesca, exportaciones por la hoja de Compartir.
+- **Seguridad**: el proxy solo devuelve imágenes PNG/JPEG en GetMap y XML en GetCapabilities, con CSP `sandbox`; GetCapabilities ya no admite parámetros de mapa; cabeceras contra el enmarcado (`frame-ancestors`, `X-Frame-Options`); CSV protegido frente a fórmulas.
 
 ## Novedades 0.4 · sesión de pesca
 

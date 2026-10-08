@@ -22,6 +22,7 @@ STATIC = {
     "/manifest.webmanifest": "manifest.webmanifest", "/icon.svg": "icon.svg",
     "/apple-touch-icon.png": "apple-touch-icon.png",
     "/icon-192.png": "icon-192.png", "/icon-512.png": "icon-512.png",
+    "/sw.js": "sw.js",
 }
 PRIVATE_NETWORKS = tuple(ipaddress.ip_network(n) for n in (
     "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
@@ -59,7 +60,7 @@ class Handler(SimpleHTTPRequestHandler):
         path = urllib.parse.urlsplit(self.path).path
         if path == "/api/health":
             return send_json(self, 200, {
-                "app": "orellana-atlas", "version": "0.4", "proxy": True,
+                "app": "orellana-atlas", "version": "0.5", "proxy": True,
                 "lan": bool(getattr(self.server, "lan_enabled", False)),
             })
         if path == "/api/wms":
@@ -97,7 +98,7 @@ def main() -> None:
         raise SystemExit(f"No se puede abrir el puerto {args.port}: {exc}. Usa --port con otro puerto.")
     server.lan_enabled = args.lan
     url = f"http://127.0.0.1:{args.port}/"
-    print(f"\nORELLANA ATLAS 0.4\nEn este PC: {url}")
+    print(f"\nORELLANA ATLAS 0.5\nEn este PC: {url}")
     if args.lan:
         print("\nEN TU IPHONE (misma Wi-Fi, Safari):")
         addresses = lan_addresses()
