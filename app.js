@@ -361,7 +361,7 @@ function setNight(on){state.settings.nightMode=on;document.documentElement.class
 // Noche automática: se enciende al ponerse el sol (sol 3° bajo el horizonte) y se apaga al amanecer. Un cambio manual se respeta hasta la siguiente transición.
 let autoDark=null;function checkAutoNight(){if(!state.settings.nightAuto){autoDark=null;return;}if(autoDark===null&&typeof state.settings.autoDarkLast==='boolean')autoDark=state.settings.autoDarkLast;const c=activeCamp()?.geometry.coordinates||HOME.center,dark=altitude(sunPos,Date.now(),c)<-3;if(dark!==autoDark){autoDark=dark;state.settings.autoDarkLast=dark;scheduleSave();if(state.settings.nightMode!==dark){setNight(dark);save();toast(dark?'Ha anochecido: modo noche activado.':'Ha amanecido: modo noche desactivado.');}}}
 // Tutorial: cuaderno antiguo. Se abre la primera vez y desde la ayuda.
-let tutIndex=0,tutBusy=false,tutTimer;const TUT_VERSION=2;
+let tutIndex=0,tutBusy=false,tutTimer;const TUT_VERSION=3;
 const tutPages=()=>$$('#tutorial .tut-page');
 function tutDraw(p){p.classList.remove('draw');void p.offsetWidth;p.classList.add('draw');}
 function tutNav(){const n=tutPages().length;$('tutDots').innerHTML=Array.from({length:n},(_,i)=>`<i class="${i===tutIndex?'on':''}"></i>`).join('');$('tutPrev').disabled=tutIndex===0;$('tutNext').textContent=tutIndex===n-1?'Empezar a pescar':'Siguiente';}
