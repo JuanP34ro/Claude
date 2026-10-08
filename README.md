@@ -4,6 +4,9 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 
 ## Novedades 0.5 · revisión de calidad
 
+- **Mapas sin conexión** (Capas › 05): con Wi-Fi se encuadra la zona (por ejemplo, todo el embalse), se eligen capas (satélite, vuelos 1956 y 1945, MTN50, Badajoz) y detalle (rápido ≈5 m/píxel, medio ≈2,4 m, alto ≈1,2 m) con tamaño estimado, y se descarga a través del proxy de la app. Después se ve sin cobertura y gasta menos datos con cobertura. Las capas recuerdan su configuración para funcionar sin leer el catálogo. Licencias: IGN y CICTEX (Junta de Extremadura) publican con CC BY 4.0; se mantiene la atribución.
+- Planos (MTN50, minutas, Badajoz) en JPEG cuando el servicio lo anuncia: mucho menos peso.
+- `mapas.ideex.es` como servidor alternativo para el vuelo de 1945 y el plano de Badajoz.
 - **Abre sin cobertura**: un service worker mínimo (`sw.js`) guarda solo la app (HTML, manifiesto e iconos), con red primero. Nunca guarda mapas, `/api/` ni el tiempo.
 - **Avisos visibles** también encima de fichas y pantallas abiertas.
 - **Sin toques perdidos** en «Mis cañas» (el reloj y la barra se actualizan sin rehacer los botones), en los puntos del mapa y con la brújula activa (redibujo limitado a cambios de 1° y unas 12 veces por segundo).
