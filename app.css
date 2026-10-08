@@ -326,15 +326,19 @@ details.group .sub>.section-title{font-size:11.5px}
 .pod-rod{cursor:pointer;outline:none}.pod-rod:focus-visible rect{stroke:#e2c587;stroke-opacity:1}
 .pod-tip{font-family:var(--sans);font-size:10px;font-weight:600;letter-spacing:.03em;fill:#e2c587}.pod-tip.dim{fill:#a99d87;font-size:9px;font-weight:500}
 .pod-empty{font-family:var(--hand);font-size:16px;fill:#a99d87}
-.pod-pill{fill:#0b0a08;stroke:#8a6d3b}.pod-clock{font-family:var(--sans);font-weight:700;font-size:13px;fill:#f3ead6;font-variant-numeric:tabular-nums}
+.pod-pill{fill:#0b0a08;stroke:#8a6d3b}.pod-clock{font-family:var(--sans);font-weight:700;font-size:13px;fill:#f3ead6;font-variant-numeric:tabular-nums}.pod-svg.tight .pod-clock{font-size:12px}
 .pod-rod.due .pod-pill{stroke:#ff9e5a;stroke-width:1.5}.pod-rod.due .pod-clock{fill:#ff9e5a}.pod-rod.out .pod-clock{fill:#6d665c}
-.pod-rod.due .pod-led{animation:podBlink 1s steps(2,end) infinite}.pod-rod.on .pod-led{filter:drop-shadow(0 0 2px #e2c587)}
-.pod-rod.cast .pod-led{animation:podCast 1.3s ease-out}
+/* Avisador: lente LED de su color. Apagada (caña fuera) se ve tintada; en el agua, encendida suave; al tocar recebar, parpadea; al lanzar, destella. */
+.pod-led{fill:var(--led,#e2c587);opacity:.32}.pod-halo{fill:var(--led,#e2c587);opacity:0}
+.pod-rod.on .pod-led{opacity:.95}.pod-rod.on .pod-halo{opacity:.16}
+.pod-rod.due .pod-led,.pod-rod.due .pod-halo{animation:podBlink 1s steps(2,end) infinite}.pod-rod.due .pod-led{opacity:1}.pod-rod.due .pod-halo{opacity:.34}
+.pod-rod.cast .pod-led{animation:podCast 1.3s ease-out}.pod-rod.cast .pod-halo{animation:podHalo 1.3s ease-out}
 .rods-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;margin-bottom:22px}
 .rods-empty{grid-column:1/-1;text-align:center;padding:36px 20px}
 .rod-tile{border:1px solid #4a3c28;border-radius:16px;padding:12px 14px 14px;background:linear-gradient(180deg,#1a140d,#0c0a07);box-shadow:inset 0 1px 0 #ffffff0d,0 6px 20px #0008}
 .rod-hd{display:flex;align-items:center;gap:10px}.rod-hd .icon-btn{margin-left:auto;font-size:20px;border-radius:50%}
-.rod-num{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-family:var(--engraved);font-weight:600;font-size:15px;color:#1b1408;background:var(--gold-grad);box-shadow:0 0 0 2px #0c0a07,0 0 0 3px #8a6d3b}
+.rod-num{flex:none;width:42px;height:42px;border-radius:50%;display:grid;place-items:center;font-family:var(--engraved);font-weight:600;font-size:15px;color:#1b1408;background:var(--gold-grad);box-shadow:0 0 0 2px #0c0a07,0 0 0 3.5px var(--led,#8a6d3b)}
+.rod-tile:not(.out) .rod-num{box-shadow:0 0 0 2px #0c0a07,0 0 0 3.5px var(--led,#8a6d3b),0 0 16px -3px var(--led,#8a6d3b)}
 .rod-head{min-width:0}.rod-head h3{margin:0;font-family:var(--engraved);letter-spacing:.06em;font-size:16px;color:#efe6d2}
 .rod-spot{font-size:13px;color:var(--muted);display:flex;align-items:center;gap:6px}.rod-spot i{width:9px;height:9px;border-radius:50%;flex:none}
 .rod-clock{text-align:center;margin:10px 0 6px}
@@ -387,6 +391,15 @@ dialog[open]::backdrop{animation:fadeIn .25s ease-out}
 .chips button{min-height:44px;padding:8px 15px;border-radius:22px;font-size:14.5px;font-weight:600;background:#120f0b;border-color:var(--edge);color:var(--text)}
 .chips button.active{background:linear-gradient(180deg,#3a2f1d,#241c11);border-color:#c9a45c;color:var(--gold);box-shadow:inset 0 0 0 1px #c9a45c55}
 .chips button b{font-family:var(--engraved);color:var(--accent);margin-right:6px}
+.led-dot,.rod-led{display:inline-block;width:9px;height:9px;border-radius:50%;flex:none;background:var(--led);box-shadow:0 0 0 1.5px #0c0a07,0 0 6px var(--led);vertical-align:1px;margin-right:7px}
+.alarm-pick{display:grid;grid-template-columns:repeat(6,1fr);gap:6px}
+.alarm-pick button{position:relative;display:flex;flex-direction:column;align-items:center;gap:6px;min-height:64px;padding:9px 2px 7px;border-radius:12px;font-size:11.5px;font-weight:600;background:#120f0b;border-color:var(--edge);color:var(--muted)}
+.alarm-pick i{width:18px;height:18px;border-radius:50%;background:var(--led);opacity:.45;box-shadow:inset 0 -3px 4px #0007,inset 0 2px 2px #fff6,0 0 0 2px #0c0a07,0 0 0 3px #4a3c28;transition:opacity .2s,box-shadow .2s}
+.alarm-pick button.active{border-color:var(--led);color:var(--text);background:#1b150e}
+.alarm-pick button.active i{opacity:1;box-shadow:inset 0 -3px 4px #0006,inset 0 2px 2px #fff8,0 0 0 2px #0c0a07,0 0 0 3.5px var(--led),0 0 16px var(--led)}
+.alarm-pick button.test i{animation:ledTest .9s ease-out}
+.alarm-pick small{position:absolute;top:3px;right:5px;font-family:var(--engraved);font-size:9.5px;color:var(--muted)}
+@media(max-width:400px){.alarm-pick{grid-template-columns:repeat(3,1fr)}}
 .chips.seg{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:14px}
 .chips.seg button{border-radius:12px;padding:8px 4px;font-size:13.5px}
 .chips.seg button[data-outcome=catch].active{border-color:#ff7fb0;color:#ffc1d8;background:linear-gradient(180deg,#3a1424,#200a14)}
@@ -507,7 +520,12 @@ html.night #mapShell :where(.map-alert,#actionBar,.map-hint,.aim-panel) button{b
 html.night #mapShell :where(.map-alert,#actionBar,.map-hint) .primary{background:#2a0300;border-color:var(--nr)}
 html.night .aim-dial circle,html.night .aim-dial path:not(#aimArrow path){stroke:var(--nr-dim)}html.night #aimArrow path{fill:var(--nr);stroke:#000}
 html.night .aim-panel.aligned{border-color:var(--nr);box-shadow:none}html.night .aim-panel.aligned .aim-text{color:#ff6a50}
-html.night .pod-svg{filter:brightness(2.1) contrast(1.1)}
+/* De noche el rod pod va por encima del filtro rojo de la pantalla: su dibujo ya viene en rojo y las luces de los avisadores conservan su color, atenuadas. */
+html.night #screen-rods>.screen-scroll{filter:none}html.night #screen-rods>.screen-scroll>:not(.pod-view){filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night #screen-rods .pod-view{position:relative;z-index:1001;border-color:#3a0800}
+html.night .pod-tip{fill:#d4291b}html.night .pod-tip.dim,html.night .pod-empty{fill:#8a1a10}html.night .pod-pill{fill:#000;stroke:#6b120a}html.night .pod-clock{fill:#ff3322}
+html.night .pod-rod.due .pod-pill{stroke:#ff3322}html.night .pod-rod.due .pod-clock{fill:#ff6a50}html.night .pod-rod.out .pod-clock{fill:#6b120a}html.night .pod-rod:focus-visible rect{stroke:#ff3322}
+html.night .pod-led{opacity:.2}html.night .pod-rod.on .pod-led{opacity:.62}html.night .pod-rod.due .pod-led{opacity:.8}html.night .pod-rod.on .pod-halo{opacity:.1}html.night .pod-rod.due .pod-halo{opacity:.2}
 html.night .spot-head h2 i{filter:grayscale(1)}
 html.night #toast{background:#000;color:var(--nr);border-color:var(--nr-dim);box-shadow:none}
 html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shadow:none}html.night .stamp-mark small{color:#c92a1c}
@@ -530,8 +548,10 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 @keyframes bump{50%{transform:scale(1.04)}}
 @keyframes spotPulse{50%{stroke-opacity:.15}}
 @keyframes podBlink{50%{opacity:.15}}
-@keyframes podCast{0%,30%,60%{fill:#fff6d6;filter:drop-shadow(0 0 6px #ffe08a)}15%,45%,75%{fill:#3a342c;filter:none}}
-@keyframes rodFlash{0%{box-shadow:0 0 0 3px #e2c587,0 0 30px #e2c58799}100%{box-shadow:0 6px 20px #0008}}
+@keyframes podCast{0%,30%,60%{opacity:1}15%,45%,75%{opacity:.25}}
+@keyframes podHalo{0%,30%,60%{opacity:.6}15%,45%,75%{opacity:0}}
+@keyframes ledTest{0%,40%{opacity:1;filter:brightness(1.5)}20%,60%{opacity:.35;filter:none}}
+@keyframes rodFlash{0%{box-shadow:0 0 0 3px var(--led,#e2c587),0 0 30px var(--led,#e2c587)}100%{box-shadow:0 6px 20px #0008}}
 @keyframes stampIn{0%{opacity:0;transform:rotate(-26deg) scale(2.7)}55%{opacity:1;transform:rotate(-6deg) scale(.93)}100%{opacity:1;transform:rotate(-8deg) scale(1)}}
 @keyframes stampOut{to{opacity:0;transform:rotate(-8deg) scale(1.05)}}
 @keyframes tutOpen{from{opacity:0;transform:translateY(18px)}}

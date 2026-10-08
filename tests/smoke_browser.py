@@ -77,6 +77,12 @@ def main():
                 page.locator('#catchSave').click()
                 catch = page.evaluate('window.OrellanaAtlas.getState().catches[0]')
                 assert catch['weightKg'] == 12.5 and catch['outcome'] == 'catch', catch
+                page.locator('[data-go="rods"]').click()
+                page.locator('#rodsAdd').click()
+                page.locator('#rodDialog').wait_for(state='visible')
+                assert page.evaluate("document.querySelector('#rodAlarm .active').dataset.alarm") == 'verde', 'First rod alarm is not green'
+                page.locator('#rodForm button[type="submit"]').click()
+                assert page.evaluate('window.OrellanaAtlas.getState().rods[0].alarm') == 'verde'
                 page.locator('#helpBtn').click()
                 page.locator('#tutorial').wait_for(state='visible')
                 page.locator('#tutSkip').click()
@@ -94,7 +100,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, quick catch, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, quick catch, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:
