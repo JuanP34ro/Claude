@@ -4,6 +4,7 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 
 ## Novedades 0.4 · sesión de pesca
 
+- **Pantalla de cañas** (botón de la caña en el mapa o «Abrir pantalla de cañas» en Sesión): una tarjeta por caña con cronómetro grande del tiempo en el agua, barra y aviso de recebado, distancia en vueltas y metros, rumbo, montaje, cebo, último cebado, capturas de la sesión, última picada y fondo del spot; botones Lancé, Cebé, PICADA, Recoger y Apuntar.
 - **Logo de cuaderno antiguo de cuero** (tapa con textura, pespunte, cantoneras de latón, goma y carpa en pan de oro) en la cabecera y el icono.
 - **Tutorial de cuaderno antiguo**: ocho páginas de papel envejecido que pasan con animación de hoja, con dibujos a tinta que se trazan solos y anotaciones manuscritas. Se abre la primera vez y desde Ayuda o Conexión. Respeta «reducir movimiento».
 - **Tiempo** (Open-Meteo, CC BY 4.0, sin clave): presión actual y su tendencia en 3, 12 y 24 h, gráfico de 3 días atrás y previsión, aviso de cambio rápido (umbral configurable), viento con rachas y si da de cara, de espalda o lateral respecto al puesto y los spots, tabla de las próximas 24 h. Se envía la zona del puesto redondeada a ~1 km; los últimos datos quedan guardados para verlos sin conexión.

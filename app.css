@@ -124,3 +124,24 @@ dialog.tutorial::backdrop{background:#0b0805e6}
 .tut-dots{display:flex;gap:6px}.tut-dots i{width:7px;height:7px;border-radius:50%;background:#5a4a33}.tut-dots i.on{background:#e2c587}
 @media(max-width:700px){.tut-title{font-size:30px}.tut-text{font-size:15.5px}.tut-page{padding:18px 16px 28px 26px}.tut-page::after{left:18px}}
 @media(prefers-reduced-motion:reduce){.tut-page.flip-out,.tut-page.flip-in{animation:none}.tut-page.draw .ink,.tut-page.draw .ink *,.tut-page.draw .hand,.tut-page.draw .sw,.tut-page.draw .wash{animation:none;stroke-dashoffset:0;opacity:1}.tut-page.draw .wash{opacity:.22}}
+
+/* Pantalla de cañas */
+dialog.rods-screen{width:100%;max-width:100%;height:100dvh;max-height:100dvh;margin:0;border:0;border-radius:0;background:radial-gradient(ellipse at 50% -10%,#2a2014,#070605 60%);padding:0;display:flex;flex-direction:column}
+dialog.rods-screen:not([open]){display:none}
+.rods-top{display:flex;justify-content:space-between;align-items:flex-start;gap:10px;padding:max(14px,env(safe-area-inset-top)) 16px 10px;border-bottom:1px solid #3b3125;background:#000c;position:sticky;top:0;z-index:2}
+.rods-top h2{font-family:var(--script);font-weight:400;font-size:32px;line-height:1.05;margin:2px 0;color:#f3ead6}.rods-top .tiny{margin:2px 0 0}
+.rods-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(300px,1fr));gap:12px;padding:14px 14px max(20px,env(safe-area-inset-bottom));overflow:auto;flex:1}
+.rods-empty{grid-column:1/-1;text-align:center;padding:40px 20px}
+.rod-tile{border:1px solid #4a3c28;border-radius:14px;padding:12px 14px 14px;background:linear-gradient(180deg,#1a140d,#0c0a07);box-shadow:inset 0 1px 0 #ffffff0d,0 6px 20px #0008}
+.rod-hd{display:flex;align-items:center;gap:10px}.rod-hd .icon-btn{margin-left:auto;width:36px;min-height:36px;height:36px;font-size:18px;padding:0}
+.rod-num{flex:none;width:40px;height:40px;border-radius:50%;display:grid;place-items:center;font-family:var(--engraved);font-weight:600;font-size:15px;color:#1b1408;background:var(--gold-grad);box-shadow:0 0 0 2px #0c0a07,0 0 0 3px #8a6d3b}
+.rod-head{min-width:0}.rod-head h3{margin:0;font-family:var(--engraved);letter-spacing:.06em;font-size:15px;color:#efe6d2}.rod-spot{font-size:12px;color:var(--muted);display:flex;align-items:center;gap:6px}.rod-spot i{width:8px;height:8px;border-radius:50%;flex:none}
+.rod-clock{text-align:center;margin:10px 0 6px}.rod-clock small{display:block;font-family:var(--engraved);letter-spacing:.24em;font-size:9px;color:var(--accent)}
+.rod-clock strong{display:block;font-family:var(--engraved);font-weight:600;font-size:46px;line-height:1.05;color:#f3ead6;font-variant-numeric:tabular-nums;letter-spacing:.02em}.rod-clock strong span{font-size:22px;color:var(--muted);margin-left:2px}
+.rod-tile.out .rod-clock strong{color:#6d665c}
+.rod-bar{height:8px;border-radius:5px;background:#231c13;border:1px solid #3b3125;overflow:hidden}.rod-bar i{display:block;height:100%;background:var(--gold-grad);transition:width .8s linear}
+.rod-due{text-align:center;font-size:12px;color:#e2c587;margin:6px 0 10px;font-weight:600}
+.rod-tile.due{border-color:var(--warm);box-shadow:0 0 0 1px #cf8b4f88,0 6px 20px #0008}.rod-tile.due .rod-bar i{background:linear-gradient(90deg,#cf8b4f,#ff9e5a)}.rod-tile.due .rod-due{color:var(--warm);animation:pulse 1.4s ease-in-out infinite}
+.rod-facts{display:grid;grid-template-columns:1fr 1fr;gap:6px 12px;margin:0 0 12px;font-size:12px}.rod-facts div{min-width:0;border-bottom:1px solid #2a2219;padding-bottom:4px}.rod-facts dt{font-size:9.5px;letter-spacing:.12em;text-transform:uppercase;color:var(--muted);font-family:var(--engraved)}.rod-facts dd{margin:1px 0 0;color:#efe6d2;overflow-wrap:anywhere}
+.rod-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:7px}.rod-actions button{min-height:46px;font-size:13px;padding:6px}.rod-actions .primary{font-size:15px;letter-spacing:.06em}
+html.night dialog.rods-screen{background:#000}
