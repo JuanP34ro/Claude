@@ -17,10 +17,10 @@ SOURCES = {
     "pnoa": ["https://www.ign.es/wms-inspire/pnoa-ma"],
     "raster": ["https://www.ign.es/wms-inspire/mapa-raster"],
     "flight56": ["https://www.ign.es/wms/pnoa-historico"],
-    "flight45": ["https://www.ideex.es/CICTEX/ortoVuelo1945", "https://www.ideextremadura.com/CICTEX/ortoVuelo1945"],
+    "flight45": ["https://www.ideex.es/CICTEX/ortoVuelo1945", "https://www.ideextremadura.com/CICTEX/ortoVuelo1945", "https://mapas.ideex.es/CICTEX/ortoVuelo1945"],
     "mtn50": ["https://www.ign.es/wms/primera-edicion-mtn"],
     "minutas": ["https://www.ign.es/wms/primera-edicion-mtn"],
-    "badajoz": ["https://www.ideex.es/CICTEX/cartoBA45", "https://www.ideextremadura.com/CICTEX/cartoBA45"],
+    "badajoz": ["https://www.ideex.es/CICTEX/cartoBA45", "https://www.ideextremadura.com/CICTEX/cartoBA45", "https://mapas.ideex.es/CICTEX/cartoBA45"],
 }
 HOSTS = frozenset({"www.ign.es", "ign.es", "www.ideex.es", "ideex.es", "www.ideextremadura.com", "ideextremadura.com", "mapas.ideex.es"})
 MAX_BYTES = 8 * 1024 * 1024
