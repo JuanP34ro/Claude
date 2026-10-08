@@ -41,7 +41,7 @@ def main():
                     return route.continue_()
                 page.route('**/*', routing)
                 page.goto(base, wait_until='domcontentloaded')
-                page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.5'")
+                page.wait_for_function("window.OrellanaAtlas && window.OrellanaAtlas.version === '0.6'")
                 page.locator('#tutorial').wait_for(state='visible')
                 assert page.locator('#tutorial .tut-page.active').count() == 1, 'Tutorial did not open on first run'
                 page.locator('#tutNext').click()
@@ -51,9 +51,8 @@ def main():
                 assert page.evaluate('window.OrellanaAtlas.getState().settings.tutorialSeen'), 'Tutorial not marked as seen'
                 assert page.evaluate('document.documentElement.scrollWidth <= window.innerWidth'), 'Horizontal overflow'
                 assert page.locator('link[rel="apple-touch-icon"]').get_attribute('href') == 'apple-touch-icon.png'
-                if mobile:
-                    page.locator('#openSidebar').click()
-                page.locator('[data-tab="points"]').click()
+                page.locator('[data-go="spots"]').click()
+                assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'spots', 'Spots tab did not open'
                 page.locator('#addPointPanel').click()
                 page.locator('#map').click(position={'x': 140, 'y': 370})
                 page.locator('#pointDialog').wait_for(state='visible')
@@ -63,12 +62,21 @@ def main():
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas')
                 assert page.evaluate('window.OrellanaAtlas.getState().features.length') == 1, 'Storage was not restored'
+                page.locator('[data-go="diary"]').click()
+                page.locator('#addCatch').click()
+                page.locator('#catchDialog').wait_for(state='visible')
+                for key in ['1', '2', ',', '5']:
+                    page.locator(f'#catchKeypad [data-key="{key}"]').click()
+                page.locator('#catchSave').click()
+                catch = page.evaluate('window.OrellanaAtlas.getState().catches[0]')
+                assert catch['weightKg'] == 12.5 and catch['outcome'] == 'catch', catch
                 page.locator('#helpBtn').click()
+                page.locator('#tutorial').wait_for(state='visible')
+                page.locator('#tutSkip').click()
+                page.locator('#moreBtn').click()
+                page.locator('#sourcesBtn').click()
                 page.locator('#helpDialog').wait_for(state='visible')
                 page.locator('#helpDialog .primary.close-dialog').click()
-                if mobile:
-                    page.locator('#openSidebar').click()
-                page.locator('[data-tab="settings"]').click()
                 with page.expect_download() as download:
                     page.locator('#backupBtn').click()
                 assert download.value.suggested_filename.endswith('.json')
@@ -79,7 +87,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, tutorial, no overflow, point form, save/reload, help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, tutorial, no overflow, tabs, point form, save/reload, quick catch, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:

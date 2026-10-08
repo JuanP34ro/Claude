@@ -1,6 +1,22 @@
-# Carp Field Notes · versión 0.5
+# Carp Field Notes · versión 0.6
 
 Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los identificadores internos (`orellana-atlas` en el almacenamiento, las copias y la API) se mantienen para conservar los datos guardados.
+
+## Novedades 0.6 · nueva interfaz
+
+- **Pestañas abajo**: Mapa · Cañas · Spots · Tiempo · Diario, al alcance del pulgar. Arriba, **?** abre el tutorial en la página que explica la pantalla en la que estás y **⋯** lleva a **Más** (copias, pantalla y modo noche, ir a coordenadas, fondo y batimetría, conexión de los mapas y fuentes). En ordenador, las pestañas van en la cabecera y cada pantalla se abre como panel lateral junto al mapa. El botón atrás del navegador (Android) vuelve al mapa.
+- **Mapa limpio**: una sola etiqueta arriba resume las capas (toca para abrir la hoja **Capas**) y el viento con la presión; a la derecha, temperatura, GPS, modo noche y brújula; abajo, el botón **+** despliega ¡Picada!, Nuevo spot, Marcar el puesto, Medir o trazar y Ver mi puesto. La distancia escrita (metros · vueltas · rumbo) aparece en el spot que abres; en Spots › Distancias puedes mostrarla en todos.
+- **Hojas que se arrastran**: Capas y la ficha del spot suben con un pequeño rebote y se cierran arrastrándolas hacia abajo. La ficha abierta desde una caña o desde la lista ofrece volver a esa pantalla.
+- **¡Picada! en tres toques**: PICADA en la caña (o + › ¡Picada!) abre el registro rápido con teclado grande para el peso, especie y caña en botones; spot, cebo, montaje y condiciones se rellenan solos y se pueden cambiar en «Más detalles». Al guardar una captura aparece un sello «¡Captura!» con el peso.
+- **Mis cañas** es ya una pantalla propia (pestaña Cañas): al pulsar «Lancé», los avisadores del rod pod parpadean y la tarjeta se ilumina; la pestaña muestra un punto cuando toca recebar.
+- **Brújula con inercia**: la rosa y la flecha de Apuntar se mueven con un muelle amortiguado, como una brújula de verdad.
+- **Tutorial de doce páginas** (nueva: «¡Picada!») con paso de hoja real: la página gira sobre el lomo, deja ver el dorso con la tinta transparentada y proyecta sombra; se puede pasar arrastrando con el dedo. Los títulos y el texto se escriben solos. Primera visita a cada pantalla: una nota breve que se puede descartar o abrir en el tutorial.
+- **Legibilidad**: letra grabada solo en títulos; textos, botones y datos en letra de sistema, más grandes; botones de al menos 44 px; interruptores en lugar de casillas en los ajustes.
+- Corregido: el dibujo del horizonte del rod pod tenía un trazado SVG mal formado; al editar una captura cuya caña o spot se borró, ya no se pierde su nombre.
+
+### Volver a la versión anterior
+
+La versión 0.5 está guardada en la rama `backup/v0.5-antes-rediseno`. En Vercel también se puede volver al despliegue anterior desde *Deployments › Instant Rollback*. Los datos guardados en el móvil (`orellana-atlas-v1`) no cambian de formato: solo se añaden dos ajustes opcionales (`distLabels` y `hints`), que la 0.5 ignora.
 
 ## Novedades 0.5 · revisión de calidad
 

@@ -2,7 +2,7 @@
  * 1) App sin conexión: guarda solo la propia app (HTML, manifiesto e iconos), red primero (4 s).
  * 2) Mapas sin conexión: sirve las imágenes que el usuario descargó a propósito en «Mapas sin conexión»
  *    (caché cfn-tiles-*). Nunca guarda por su cuenta mapas, /api/ ni el tiempo. */
-const CACHE='cfn-shell-v1',TILES='cfn-tiles-v1';
+const CACHE='cfn-shell-v2',TILES='cfn-tiles-v1';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./apple-touch-icon.png','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&!k.startsWith('cfn-tiles')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
