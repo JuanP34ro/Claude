@@ -1,9 +1,6 @@
 {
   "$schema": "https://openapi.vercel.sh/vercel.json",
   "framework": null,
-  "regions": [
-    "cdg1"
-  ],
   "functions": {
     "api/wms.py": {
       "maxDuration": 30,

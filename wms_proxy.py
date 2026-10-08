@@ -2,11 +2,8 @@
 
 No envía puntos ni notas. No utiliza claves ni servicios comerciales.
 HTTPS verificado, respuesta limitada, timeout y redirecciones restringidas.
-Si un servidor oficial falla o tarda, la misma petición se repite en los otros
-servidores oficiales de esa fuente (solo los de la lista), dentro de un tiempo máximo.
 """
 from __future__ import annotations
-import http.client
 import json
 import math
 import threading
@@ -28,8 +25,6 @@ SOURCES = {
 }
 HOSTS = frozenset({"www.ign.es", "ign.es", "www.ideex.es", "ideex.es", "www.ideextremadura.com", "ideextremadura.com", "mapas.ideex.es"})
 MAX_BYTES = 8 * 1024 * 1024
-MAX_SECONDS = 26  # tiempo total por petición; Vercel corta la función a los 30 s
-FETCH_ERRORS = (urllib.error.URLError, TimeoutError, ValueError, OSError, http.client.HTTPException)
 _CAPS_CACHE: dict[str, tuple[float, bytes, str]] = {}
 _LOCK = threading.Lock()
 _GATE = threading.BoundedSemaphore(8)
@@ -89,64 +84,30 @@ def build_url(query: str) -> tuple[str, str]:
     return SOURCES[source][endpoint] + "?" + urllib.parse.urlencode(q), operation
 
 
-def candidates(url: str) -> list[str]:
-    """La misma petición en los servidores oficiales de su fuente, empezando por el pedido.
-
-    Con un solo servidor se permite un segundo intento al mismo (útil ante un corte puntual)."""
-    base, _, query = url.partition("?")
-    for bases in SOURCES.values():
-        if base in bases:
-            i = bases.index(base)
-            ordered = bases[i:] + bases[:i]
-            return [b + "?" + query for b in ordered] if len(ordered) > 1 else [url, url]
-    return [url]
-
-
-def _fetch_once(url: str, timeout: float) -> tuple[bytes, str]:
-    req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.6 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
-    opener = urllib.request.build_opener(RestrictedRedirect())
-    with opener.open(req, timeout=timeout) as response:
-        data = response.read(MAX_BYTES + 1)
-        content_type = response.headers.get("Content-Type", "application/octet-stream")
-    if len(data) > MAX_BYTES:
-        raise ValueError("La respuesta supera el límite de 8 MB")
-    return data, content_type
-
-
 def fetch_wms(url: str, operation: str) -> tuple[bytes, str]:
     if operation == "getcapabilities":
         with _LOCK:
             cached = _CAPS_CACHE.get(url)
             if cached and time.monotonic() - cached[0] < 3600:
                 return cached[1], cached[2]
-    started = time.monotonic()
-    if not _GATE.acquire(timeout=12):
+    if not _GATE.acquire(timeout=3):
         raise TimeoutError("Demasiadas peticiones simultáneas; reintenta en unos segundos")
     try:
+        req = urllib.request.Request(url, headers={"User-Agent": "OrellanaAtlas/0.6 (personal WMS viewer)", "Accept": "image/png,image/jpeg,text/xml,application/xml;q=0.9,*/*;q=0.5"})
+        opener = urllib.request.build_opener(RestrictedRedirect())
+        with opener.open(req, timeout=16) as response:
+            data = response.read(MAX_BYTES + 1)
+            content_type = response.headers.get("Content-Type", "application/octet-stream")
+        if len(data) > MAX_BYTES:
+            raise ValueError("La respuesta supera el límite de 8 MB")
         if operation == "getcapabilities":
-            data, content_type = _fetch_once(url, 16)
             if b"<" not in data[:300]:
                 raise ValueError("El proveedor no devuelve un catálogo XML")
             with _LOCK:
                 if len(_CAPS_CACHE) > 30:
                     _CAPS_CACHE.clear()
                 _CAPS_CACHE[url] = (time.monotonic(), data, content_type)
-            return data, content_type
-        last: Exception | None = None
-        for candidate in candidates(url):
-            remaining = MAX_SECONDS - (time.monotonic() - started)
-            if remaining < 4:
-                break
-            try:
-                data, content_type = _fetch_once(candidate, min(15.0, remaining))
-                kind = content_type.split(";")[0].strip().lower()
-                if kind not in {"image/png", "image/jpeg"}:
-                    # Un error del servidor en XML/HTML con estado 200: se prueba el siguiente servidor.
-                    raise ValueError(f"La fuente no devolvió una imagen ({kind[:40]})")
-                return data, content_type
-            except FETCH_ERRORS as exc:
-                last = exc
-        raise last or TimeoutError("Sin tiempo para reintentar la fuente")
+        return data, content_type
     finally:
         _GATE.release()
 
@@ -159,10 +120,7 @@ def send_json(handler: BaseHTTPRequestHandler, status: int, payload: dict):
     handler.send_header("Cache-Control", "no-store")
     handler.send_header("X-Content-Type-Options", "nosniff")
     handler.end_headers()
-    try:
-        handler.wfile.write(body)
-    except (BrokenPipeError, ConnectionResetError):
-        pass  # el navegador ya no espera esta respuesta (dejó de necesitar la imagen)
+    handler.wfile.write(body)
 
 
 def serve_wms(handler: BaseHTTPRequestHandler):
@@ -173,7 +131,7 @@ def serve_wms(handler: BaseHTTPRequestHandler):
         return
     try:
         data, content_type = fetch_wms(url, operation)
-    except FETCH_ERRORS as exc:
+    except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
         send_json(handler, 502, {"error": "La fuente WMS no respondió correctamente", "detail": str(exc)[:220]})
         return
     # Nunca se reenvía el tipo de contenido del proveedor tal cual: un error HTML/XML con
@@ -183,7 +141,7 @@ def serve_wms(handler: BaseHTTPRequestHandler):
         if kind not in {"image/png", "image/jpeg"}:
             send_json(handler, 502, {"error": "La fuente WMS no devolvió una imagen", "detail": kind[:60]})
             return
-        content_type, cache = kind, "public, max-age=604800, s-maxage=604800, stale-while-revalidate=2592000"
+        content_type, cache = kind, "public, max-age=86400, s-maxage=604800"
     else:
         content_type, cache = "application/xml; charset=utf-8", "public, max-age=3600, s-maxage=86400"
     handler.send_response(200)

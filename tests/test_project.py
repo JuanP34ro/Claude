@@ -144,54 +144,6 @@ class ProxyTests(unittest.TestCase):
             h = H('/api/wms?source=pnoa&SERVICE=WMS&REQUEST=GetCapabilities&VERSION=1.3.0'); wms_proxy.serve_wms(h)
         self.assertEqual(h.headers['Content-Type'], 'application/xml; charset=utf-8')
 
-    def test_failover_candidates_stay_on_official_servers(self):
-        import wms_proxy
-        url, _ = build_url(self.query(source='caminos', endpoint='1', LAYERS='CATALOGOCAMINOS_TOTAL'))
-        found = wms_proxy.candidates(url)
-        self.assertEqual([c.split('/')[2] for c in found], ['www.ideex.es', 'www.ideextremadura.com', 'mapas.ideex.es'])
-        self.assertEqual({c.split('?', 1)[1] for c in found}, {url.split('?', 1)[1]})
-        single, _ = build_url(self.query())
-        self.assertEqual(wms_proxy.candidates(single), [single, single])
-        self.assertEqual(wms_proxy.candidates('https://evil.invalid/wms?x=1'), ['https://evil.invalid/wms?x=1'])
-
-    def test_getmap_fails_over_to_the_next_official_server(self):
-        import http.client
-        import wms_proxy
-        url, _ = build_url(self.query(source='caminos', LAYERS='CATALOGOCAMINOS_TOTAL'))
-        calls = []
-        def upstream(candidate, timeout):
-            calls.append(candidate)
-            self.assertLessEqual(timeout, 15)
-            if len(calls) == 1:
-                raise urllib.error.URLError('timed out')
-            if len(calls) == 2:
-                return b'<ServiceExceptionReport/>', 'text/xml'
-            return b'\x89PNG', 'image/png'
-        with patch('wms_proxy._fetch_once', side_effect=upstream):
-            self.assertEqual(wms_proxy.fetch_wms(url, 'getmap'), (b'\x89PNG', 'image/png'))
-        self.assertEqual([c.split('/')[2] for c in calls], ['mapas.ideex.es', 'www.ideex.es', 'www.ideextremadura.com'])
-        with patch('wms_proxy._fetch_once', side_effect=http.client.IncompleteRead(b'')):
-            with self.assertRaises(http.client.HTTPException):
-                wms_proxy.fetch_wms(url, 'getmap')
-
-    def test_truncated_upstream_answer_is_a_502(self):
-        import http.client
-        import wms_proxy
-        class H:
-            def __init__(self, path):
-                self.path, self.status, self.headers, self.body = path, None, {}, b''
-                self.wfile = self
-            def send_response(self, code): self.status = code
-            def send_header(self, k, v): self.headers[k] = v
-            def end_headers(self): pass
-            def write(self, b): self.body += b
-        with patch('wms_proxy.fetch_wms', side_effect=http.client.IncompleteRead(b'')):
-            h = H('/api/wms?' + self.query()); wms_proxy.serve_wms(h)
-        self.assertEqual(h.status, 502)
-        with patch('wms_proxy.fetch_wms', return_value=(b'\x89PNG', 'image/png')):
-            h = H('/api/wms?' + self.query()); wms_proxy.serve_wms(h)
-        self.assertIn('stale-while-revalidate', h.headers['Cache-Control'])
-
     def test_duplicate_params(self):
         for suffix in ['&WIDTH=12', '&width=12']:
             with self.assertRaises(ValueError):
