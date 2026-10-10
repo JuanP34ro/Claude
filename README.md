@@ -33,6 +33,14 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
   - La pantalla se mantiene encendida con el GPS activo en el mapa: si se apaga, el móvil deja de dar posiciones. Gasta más batería.
   - Al apagar el GPS tras un recorrido de 40 m o más, se ofrece guardarlo como trazado (Spots › Trazados), con nombre «Recorrido hh:mm».
   - Comprobado solo con posiciones simuladas en el navegador; pendiente de probar en la barca.
+- **Revisión general (correcciones)**:
+  - Con el mapa muy alejado, cada gesto construía la lista completa de imágenes de «Mapas sin conexión» (cientos de miles o millones de entradas) y podía congelar la app. Ahora solo se cuentan y la lista se construye al empezar la descarga; con la hoja de Capas cerrada ni se cuenta.
+  - Si los datos guardados no se podían leer (escritura cortada, almacenamiento lleno), el siguiente guardado los sobrescribía con un proyecto vacío. Ahora se conserva una copia aparte, la app avisa y en Más › Copia de seguridad se puede descargar o borrar.
+  - El tiempo no vuelve a mostrar «undefined» o «NaN» cuando a Open-Meteo le falta un dato de viento, temperatura o nubes para esa hora.
+  - Sin Popover API (Safari anterior a 17), los avisos quedaban tapados por los diálogos; ahora se muestran dentro del diálogo abierto.
+  - La gráfica de presión marcaba mal los días al cambiar la hora (el 25 de octubre de 2026 cae en plena semana del WCC).
+  - El GPX guarda «contrastado» y las fechas de cada punto, y un GPX sin fecha ya no pisa la copia local al importarlo.
+  - El intermediario responde 502 (y no un error 500) si la Junta o el IGN cortan la respuesta a medias.
 - **Tutorial nítido**: las palabras aparecen sin desenfoque y la hoja gira sin balanceo; de noche, página oscura con tinta roja.
 
 ### Volver a la versión anterior

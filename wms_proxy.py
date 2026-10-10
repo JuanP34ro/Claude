@@ -4,6 +4,7 @@ No envía puntos ni notas. No utiliza claves ni servicios comerciales.
 HTTPS verificado, respuesta limitada, timeout y redirecciones restringidas.
 """
 from __future__ import annotations
+import http.client
 import json
 import math
 import re
@@ -153,7 +154,7 @@ def serve_wms(handler: BaseHTTPRequestHandler):
         return
     try:
         data, content_type = fetch_wms(url, operation)
-    except (urllib.error.URLError, TimeoutError, ValueError, OSError) as exc:
+    except (urllib.error.URLError, http.client.HTTPException, TimeoutError, ValueError, OSError) as exc:
         send_json(handler, 502, {"error": "La fuente WMS no respondió correctamente", "detail": str(exc)[:220]})
         return
     # Nunca se reenvía el tipo de contenido del proveedor tal cual: un error HTML/XML con

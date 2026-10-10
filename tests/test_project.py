@@ -178,6 +178,12 @@ class ProxyTests(unittest.TestCase):
         self.assertIn('sandbox', h.headers['Content-Security-Policy'])
         self.assertEqual(h.headers['X-Content-Type-Options'], 'nosniff')
 
+    def test_upstream_cut_off_is_a_502(self):
+        import http.client, wms_proxy
+        with patch('wms_proxy.fetch_wms', side_effect=http.client.IncompleteRead(b'\x89PNG')):
+            h = FakeHandler('/api/wms?' + self.query()); wms_proxy.serve_wms(h)
+        self.assertEqual((h.status, h.headers['Content-Type']), (502, 'application/json; charset=utf-8'))
+
     def test_duplicate_params(self):
         for suffix in ['&WIDTH=12', '&width=12']:
             with self.assertRaises(ValueError):
