@@ -461,14 +461,20 @@ const tutPages=()=>$$('#tutorial .tut-page');
 // Dibujo de cada página con la API de animaciones del navegador: trazos de tinta, rótulos y palabras. Al terminar no queda ningún
 // estado animado (relleno «backwards») y no se usan filtros ni desenfoques: el texto se pinta nítido y quieto.
 function strokeLen(el){try{const l=el.getTotalLength();if(l>0)return l;}catch{}const n=k=>parseFloat(el.getAttribute(k))||0,t=el.tagName.toLowerCase();return t==='circle'?2*Math.PI*n('r'):t==='ellipse'?Math.PI*(n('rx')+n('ry')):t==='line'?Math.hypot(n('x2')-n('x1'),n('y2')-n('y1')):t==='rect'?2*(n('width')+n('height')):1000;}
-function tutDraw(p){for(const a of p._anims||[])a.cancel();p._anims=[];if(reduceMotion()||typeof p.animate!=='function')return;
- const A=(el,kf,o)=>{try{p._anims.push(el.animate(kf,{fill:'backwards',easing:'ease-out',...o}));}catch{}},delay=el=>(parseFloat(getComputedStyle(el).getPropertyValue('--d'))||0)*1000;
+// `extra` retrasa todo el dibujo (al pasar página con un toque: la hoja aterriza y después se dibuja; con fill:'backwards' la página espera en blanco).
+function tutDraw(p,extra=0){for(const a of p._anims||[])a.cancel();p._anims=[];if(reduceMotion()||typeof p.animate!=='function')return;
+ const A=(el,kf,o)=>{try{const a=el.animate(kf,{fill:'backwards',easing:'ease-out',...o,delay:(o.delay||0)+extra});a._prop=Object.keys(kf[0])[0].replace(/[A-Z]/g,m=>'-'+m.toLowerCase());p._anims.push(a);}catch{}},delay=el=>(parseFloat(getComputedStyle(el).getPropertyValue('--d'))||0)*1000;
  const title=p.querySelector('.tut-title');if(title)A(title,[{clipPath:'inset(-12px 100% -12px 0)'},{clipPath:'inset(-12px -12px -12px 0)'}],{duration:1100,delay:150,easing:'cubic-bezier(.5,.1,.5,1)'});
  // Longitud real de cada trazo, sin depender de pathLength (algunos Safari no lo aplican a círculos y rectángulos).
  for(const ink of p.querySelectorAll('.tut-art .ink'))for(const el of ink.tagName.toLowerCase()==='g'?ink.querySelectorAll('*'):[ink]){if(!(el instanceof SVGGeometryElement))continue;if(!el.dataset.len){el.removeAttribute('pathLength');const len=Math.ceil(strokeLen(el))+2;el.dataset.len=len;el.style.strokeDasharray=`${len} ${len}`;}A(el,[{strokeDashoffset:`${el.dataset.len}px`},{strokeDashoffset:'0px'}],{duration:1300,delay:delay(el)});}
  for(const el of p.querySelectorAll('.tut-art .hand,.tut-art .sw'))A(el,[{opacity:0},{opacity:1}],{duration:700,delay:delay(el)});
  for(const el of p.querySelectorAll('.tut-art .wash'))A(el,[{opacity:0},{opacity:.22}],{duration:900,delay:delay(el)});
  p.querySelectorAll('.tut-text .w').forEach((w,i)=>{const c=getComputedStyle(w).color,[r=0,g=0,b=0]=c.match(/[\d.]+/g)||[];A(w,[{color:`rgba(${r},${g},${b},0)`},{color:c}],{duration:420,delay:500+i*28});});}
+// Al pasar página antes de que termine de dibujarse, la hoja que gira copia la página tal como estaba en ese instante (trazos a medias,
+// palabras apareciendo) en vez de salir de golpe completa. Después la página original queda limpia para dibujarse de nuevo otro día.
+// Primero se leen todos los valores animados y luego se escriben (una sola resolución de estilos, no una por animación).
+function freezeDraw(p){const live=(p._anims||[]).filter(a=>a.playState==='running'||a.playState==='pending'),vals=live.map(a=>{const t=a.effect?.target;return t&&a._prop?[t,a._prop,getComputedStyle(t).getPropertyValue(a._prop)]:null;});for(const a of live)a.cancel();for(const v of vals)if(v)v[0].style.setProperty(v[1],v[2]);return live;}
+function thawDraw(live){for(const a of live){const t=a.effect?.target;if(t&&a._prop)t.style.removeProperty(a._prop);}}
 function tutNav(){const n=tutPages().length;$('tutDots').innerHTML=Array.from({length:n},(_,i)=>`<i class="${i===tutIndex?'on':''}"></i>`).join('');$('tutPrev').disabled=tutIndex===0;$('tutNext').textContent=tutIndex===n-1?'Empezar a pescar':'Siguiente';}
 // Cada palabra del texto aparece con un pequeño retraso, como si se escribiera a mano (solo cambia su color, nunca su posición).
 function splitTutWords(){for(const p of $$('#tutorial .tut-text')){if(p.dataset.split)continue;p.dataset.split='1';const walk=n=>{for(const c of [...n.childNodes]){if(c.nodeType===3){const frag=document.createDocumentFragment();for(const t of c.textContent.split(/(\s+)/)){if(!t)continue;if(/^\s+$/.test(t)){frag.append(t);continue;}const w=document.createElement('span');w.className='w';w.textContent=t;frag.append(w);}c.replaceWith(frag);}else if(c.nodeType===1)walk(c);}};walk(p);}}
@@ -479,7 +485,7 @@ function makeLeaf(page){const mk=(t,c)=>{const e=document.createElement(t);e.cla
 const LEAF_PARTS=['el','shadeF','shadeB','dim','cast'];
 function turnState(p,W){const s=Math.sin(Math.PI*p);return {el:{transform:`rotateY(${(-180*p).toFixed(2)}deg)`},shadeF:{opacity:Math.min(1,p*2.2)},shadeB:{opacity:Math.min(1,(1-p)*2)},dim:{opacity:.16*(1-p)},cast:{opacity:s,transform:`translateX(${(W*Math.cos(Math.PI*Math.min(p,.5))).toFixed(1)}px)`}};}
 function turnFrame(L,p){L.p=p;const t=turnState(p,$('tutBook').clientWidth);for(const k of LEAF_PARTS)Object.assign(L[k].style,t[k]);}
-function animateTurn(L,p0,p1,ms,done){for(const a of L.anims)a.cancel();const W=$('tutBook').clientWidth,ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,frames=Array.from({length:21},(_,k)=>turnState(p0+(p1-p0)*ease(k/20),W));turnFrame(L,p1);
+function animateTurn(L,p0,p1,ms,done){for(const a of L.anims)a.cancel();const W=$('tutBook').clientWidth,ease=t=>t<.5?4*t*t*t:1-Math.pow(-2*t+2,3)/2,frames=Array.from({length:41},(_,k)=>turnState(p0+(p1-p0)*ease(k/40),W));turnFrame(L,p1);
  try{L.anims=LEAF_PARTS.map(k=>L[k].animate(frames.map(f=>f[k]),{duration:ms,easing:'linear'}));L.anims[0].onfinish=done;}catch{L.anims=[];done();}}
 function removeLeaf(L){for(const a of L.anims)a.cancel();L.el.remove();L.dim.remove();L.cast.remove();}
 function cancelTurn(){tutDrag=null;tutAuto=null;for(const e of $$('#tutBook .tut-leaf,#tutBook .tut-dim,#tutBook .tut-cast'))e.remove();tutBusy=false;}
@@ -487,13 +493,13 @@ function cancelTurn(){tutDrag=null;tutAuto=null;for(const e of $$('#tutBook .tut
 function goTutorial(n){if(tutAuto)tutAuto();const pages=tutPages();if(tutBusy||n<0||n>=pages.length||n===tutIndex)return;const cur=pages[tutIndex],next=pages[n],fwd=n>tutIndex;tutIndex=n;tutNav();
  if(reduceMotion()){cur.className='tut-page';next.className='tut-page active';tutDraw(next);return;}
  tutBusy=true;let L,landed=false;const finish=()=>{if(landed)return;landed=true;removeLeaf(L);if(!fwd){cur.className='tut-page';next.className='tut-page active';}tutBusy=false;tutAuto=null;};tutAuto=finish;
- if(fwd){L=makeLeaf(cur);turnFrame(L,0);cur.className='tut-page';next.className='tut-page active';tutDraw(next);animateTurn(L,0,1,950,finish);}
+ if(fwd){const live=freezeDraw(cur);L=makeLeaf(cur);thawDraw(live);turnFrame(L,0);cur.className='tut-page';next.className='tut-page active';tutDraw(next,450);animateTurn(L,0,1,950,finish);}
  else{L=makeLeaf(next);turnFrame(L,1);animateTurn(L,1,0,950,finish);}}
 // Arrastrar con el dedo: la hoja sigue al dedo y, al soltar, termina de pasar o vuelve a su sitio.
 function wireTutDrag(){const book=$('tutBook');
  book.addEventListener('pointerdown',e=>{if(tutBusy||e.button>0||e.target.closest('button,a'))return;tutDrag={x0:e.clientX,y0:e.clientY,id:e.pointerId,L:null,dir:0,p:0,v:0,lx:e.clientX,lt:performance.now()};});
  book.addEventListener('pointermove',e=>{const d=tutDrag;if(!d||e.pointerId!==d.id)return;const dx=e.clientX-d.x0,dy=e.clientY-d.y0,now=performance.now();d.v=(e.clientX-d.lx)/Math.max(1,now-d.lt);d.lx=e.clientX;d.lt=now;
-  if(!d.dir){if(Math.abs(dx)<10||Math.abs(dx)<Math.abs(dy))return;const pages=tutPages(),dir=dx<0?1:-1,n=tutIndex+dir;if(n<0||n>=pages.length||reduceMotion()){tutDrag=null;if(n>=0&&n<pages.length)goTutorial(n);return;}d.dir=dir;d.n=n;try{book.setPointerCapture(d.id);}catch{}tutBusy=true;if(dir>0){d.L=makeLeaf(pages[tutIndex]);pages[tutIndex].className='tut-page';pages[n].className='tut-page active';tutDraw(pages[n]);}else d.L=makeLeaf(pages[n]);}
+  if(!d.dir){if(Math.abs(dx)<10||Math.abs(dx)<Math.abs(dy))return;const pages=tutPages(),dir=dx<0?1:-1,n=tutIndex+dir;if(n<0||n>=pages.length||reduceMotion()){tutDrag=null;if(n>=0&&n<pages.length)goTutorial(n);return;}d.dir=dir;d.n=n;try{book.setPointerCapture(d.id);}catch{}tutBusy=true;if(dir>0){const live=freezeDraw(pages[tutIndex]);d.L=makeLeaf(pages[tutIndex]);thawDraw(live);pages[tutIndex].className='tut-page';pages[n].className='tut-page active';tutDraw(pages[n]);}else d.L=makeLeaf(pages[n]);}
   const W=book.clientWidth||1;turnFrame(d.L,d.dir>0?clamp(-dx/W,0,1):clamp(1-dx/W,0,1));});
  const end=()=>{const d=tutDrag;tutDrag=null;if(!d||!d.dir)return;const pages=tutPages(),cur=pages[tutIndex],next=pages[d.n],p=d.L.p,commit=d.dir>0?p>.3||d.v<-.45:p<.7||d.v>.45,land=()=>{tutIndex=d.n;tutNav();tutBusy=false;};
   if(d.dir>0)animateTurn(d.L,p,commit?1:0,commit?Math.max(240,700*(1-p)):Math.max(200,600*p),()=>{removeLeaf(d.L);if(commit)land();else{next.className='tut-page';cur.className='tut-page active';tutBusy=false;}});

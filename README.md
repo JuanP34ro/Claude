@@ -41,6 +41,7 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
   - La gráfica de presión marcaba mal los días al cambiar la hora (el 25 de octubre de 2026 cae en plena semana del WCC).
   - El GPX guarda «contrastado» y las fechas de cada punto, y un GPX sin fecha ya no pisa la copia local al importarlo.
   - El intermediario responde 502 (y no un error 500) si la Junta o el IGN cortan la respuesta a medias.
+- **Tutorial, paso de página afinado**: si tocas «Siguiente» antes de que la página termine de dibujarse, la hoja que gira la copia tal como estaba (trazos a medias, palabras apareciendo) en vez de salir de golpe completa; la página nueva espera en blanco bajo la hoja y empieza a dibujarse cuando esta ha pasado la mitad (unos 0,45 s), con lo que se ve desde el primer trazo; el giro se muestrea con 41 posiciones en vez de 21. Al arrastrar con el dedo, la página nueva se dibuja al momento, como antes. Medido en el navegador: 55-60 fotogramas por segundo durante el giro.
 - **Tutorial nítido**: las palabras aparecen sin desenfoque y la hoja gira sin balanceo; de noche, página oscura con tinta roja.
 
 ### Volver a la versión anterior
