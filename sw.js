@@ -22,6 +22,8 @@ self.addEventListener('fetch',e=>{
       const ctrl=new AbortController(),t=setTimeout(()=>ctrl.abort(),4000);
       const res=await fetch(req,{signal:ctrl.signal,cache:'no-cache'});clearTimeout(t);
       if(res.ok&&url.pathname.startsWith(scope))await cache.put(shellKey,res.clone());
+      // Alojamiento caído o pausado (error 4xx/5xx): se abre la copia guardada de la app en vez de la página de error.
+      if(!res.ok&&isPage){const hit=await cache.match(shellKey,{ignoreSearch:true});if(hit)return hit;}
       return res;
     }catch{
       return (await cache.match(shellKey,{ignoreSearch:true}))||(await cache.match(new URL('./',self.registration.scope).href))||Response.error();
