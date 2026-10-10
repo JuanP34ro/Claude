@@ -204,5 +204,15 @@ class LanTests(unittest.TestCase):
         ]):
             self.assertEqual(server.lan_addresses(), ['192.168.1.4'])
 
+class ServiceWorkerTests(unittest.TestCase):
+    def test_service_worker_never_handles_map_images(self):
+        # Map images (network or saved maps) are the app's business: a worker in that path left the installed app blank on iPhone.
+        sw = (Path(__file__).resolve().parents[1] / 'sw.js').read_text(encoding='utf-8')
+        self.assertNotIn('getmap', sw.lower())
+        self.assertNotIn('tileKey', sw)
+        self.assertIn("!k.startsWith('cfn-tiles')", sw)   # the saved maps are never deleted by the worker
+        self.assertIn("url.pathname.includes('/api/')", sw)   # /api/ is never cached
+
+
 if __name__ == '__main__':
     unittest.main()
