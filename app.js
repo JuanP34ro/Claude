@@ -89,7 +89,7 @@ try{const raw=localStorage.getItem(STORAGE);if(raw){const x=JSON.parse(raw);stat
 let saveTimer,saveWarned=false;
 function save(){state.updatedAt=new Date().toISOString();try{localStorage.setItem(STORAGE,JSON.stringify(state));storageWorks=true;$('saveState').textContent='Guardado local';}catch{if(storageWorks||!saveWarned){saveWarned=true;toast('No se ha podido guardar en el móvil (almacenamiento lleno o bloqueado). Haz «Guardar copia» ahora.',true);}storageWorks=false;$('saveState').textContent='Sin guardado persistente';$('storageInfo').textContent='El navegador no permite guardar de forma persistente. Exporta una copia antes de cerrar.';}}
 function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(save,400);}
-let map,slots,networkProxy=false,mode='pan',draft=[],gps=null,gpsWatch=null,alertDismissed=false;
+let map,slots,networkProxy=false,proxyKnown=false,proxyReady=null,mode='pan',draft=[],gps=null,gpsWatch=null,alertDismissed=false;
 // GPS en la barca: el mapa te sigue (hasta que lo arrastras), se dibuja hacia dónde te mueves y a qué velocidad, y queda el rastro del recorrido.
 // Rumbo y velocidad los da el móvil; si no los da (parado o según el navegador), se calculan con los dos últimos puntos.
 const GPS_STALE=12000,GPS_MOVING=.6;let gpsTrail=[],gpsTick=null,gpsHintShown=false,pendingTrail=null;
@@ -142,9 +142,9 @@ function chooseLayer(source,cat){
 }
 async function resolveSource(key,force=false){
  const s=SOURCES[key];if(!s)return;if(sourcePromises.has(key)&&!force)return sourcePromises.get(key);
- const p=(async()=>{s.catalogState='Consultando catálogo…';s.catalogError='';refreshStatus();let last;
+ const p=(async()=>{s.catalogState='Consultando catálogo…';s.catalogError='';refreshStatus();let last;await proxyReady;
  for(let i=0;i<s.urls.length;i++){
-  const attempt={...s,url:s.urls[i]};try{const cat=await catalogFor(attempt);const layer=chooseLayer(s,cat);const version=cat.version.startsWith('1.1')?'1.1.1':'1.3.0',crs=layer.crs.find(c=>c.toUpperCase()==='EPSG:3857')||layer.crs.find(c=>/EPSG:(900913|102100)$/i.test(c));const format=PHOTO_SOURCES.includes(key)&&cat.formats.includes('image/jpeg')?'image/jpeg':'image/png';const changed=s.layer!==layer.name||s.url!==attempt.url||s.version!==version||s.crs!==crs||s.format!==format;s.url=attempt.url;s.layer=layer.name;s.version=version;s.crs=crs;s.format=format;s.minScale=layer.minScale;s.maxScale=layer.maxScale;s.queryable=layer.queryable;s.infoFormats=cat.infoFormats;s.layerTitles=new Map(cat.layers.map(l=>[l.name,l.title]));s.catalogState='Catálogo leído';s.catalogError='';rememberSources();s.availableLayers=cat.layers.filter(l=>l.leaf);if(changed||force){for(const slot of Object.values(slots||{}))if(slot.source?.id===key)slot.setSource(s,true);}refreshStatus();map?.render(true);return s;}catch(e){last=e;}
+  const attempt={...s,url:s.urls[i]};try{const cat=await catalogFor(attempt);const layer=chooseLayer(s,cat);const version=cat.version.startsWith('1.1')?'1.1.1':'1.3.0',crs=layer.crs.find(c=>c.toUpperCase()==='EPSG:3857')||layer.crs.find(c=>/EPSG:(900913|102100)$/i.test(c));const format=PHOTO_SOURCES.includes(key)&&cat.formats.includes('image/jpeg')?'image/jpeg':'image/png';const changed=s.layer!==layer.name||s.url!==attempt.url||s.version!==version||s.crs!==crs||s.format!==format;s.url=attempt.url;s.layer=layer.name;s.version=version;s.crs=crs;s.format=format;s.minScale=layer.minScale;s.maxScale=layer.maxScale;s.queryable=layer.queryable;s.infoFormats=cat.infoFormats;s.layerTitles=new Map(cat.layers.map(l=>[l.name,l.title]));s.catalogState='Catálogo leído';s.catalogError='';rememberSources();s.availableLayers=cat.layers.filter(l=>l.leaf);if(changed){for(const slot of Object.values(slots||{}))if(slot.source?.id===key)slot.setSource(s,true);}refreshStatus();map?.render(true);return s;}catch(e){last=e;}
  }
  s.catalogState='Catálogo no accesible';s.catalogError=last?.name==='AbortError'?'Tiempo de espera agotado':String(last?.message||last||'Red / CORS');refreshStatus();return s;
  })();sourcePromises.set(key,p);return p;
@@ -167,7 +167,7 @@ class RasterSlot{
  retry(){const s=this.source;if(s)this.setSource(s,true);}
  tileUrl(z,x,y,viaProxy=false){const n=2**(z-1);const step=2*MERC/n;const minx=-MERC+x*step,maxy=MERC-y*step;const q={SERVICE:'WMS',VERSION:this.source.version||'1.3.0',REQUEST:'GetMap',LAYERS:this.source.layer,STYLES:'',FORMAT:this.source.format||'image/png',TRANSPARENT:this.source.format==='image/jpeg'?'FALSE':'TRUE',WIDTH:512,HEIGHT:512,BBOX:[minx,maxy-step,minx+step,maxy].map(v=>v.toFixed(5)).join(',')};q[this.source.version==='1.1.1'?'SRS':'CRS']=this.source.crs||'EPSG:3857';return wmsRequest(this.source,q,!!this.source.direct&&!viaProxy);}
  update(m,requestNew){
- if(!this.visible||!this.source)return;if(!this.source.layer){this.current=[];return;}
+ if(!this.visible||!this.source)return;if(!this.source.layer||(!this.source.direct&&!proxyKnown)){this.current=[];return;}
  const [zlo,zhi]=this.overlay?drawZooms(this.source):[0,24],z=Math.min(zhi,!navigator.onLine&&offMeta?.zmax?Math.min(Math.floor(m.zoom),offMeta.zmax):Math.floor(m.zoom)),world=256*2**z,scale=2**(m.zoom-z),c=xy(m.center),cx=c[0]*world,cy=c[1]*world;
  this.far=z<zlo?zlo:0;this.el.classList.toggle('far',!!this.far);if(this.far){this.current=[];return;}
  const max=2**(z-1)-1;const x0=clamp(Math.floor((cx-m.width/2/scale)/512),0,max),x1=clamp(Math.floor((cx+m.width/2/scale)/512),0,max),y0=clamp(Math.floor((cy-m.height/2/scale)/512),0,max),y1=clamp(Math.floor((cy+m.height/2/scale)/512),0,max);
@@ -736,12 +736,11 @@ function renderDamaged(){let raw=null;try{raw=localStorage.getItem(STORAGE+'-dam
  const flush=()=>{clearTimeout(saveTimer);state.settings.center=map.center;state.settings.zoom=map.zoom;save();};window.addEventListener('beforeunload',flush);window.addEventListener('pagehide',flush);document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')flush();});
 }
 async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new RasterSlot($('photoRaster')),topo:new RasterSlot($('topoRaster')),roads:new RasterSlot($('roadsRaster'),true),bath:new RasterSlot($('bathRaster'))};map=new AtlasMap($('map'));wire();wireSession();wireOffline();wirePath();syncControls();renderFeatures();
- const checkProxy=async()=>{if(!/^https?:$/.test(location.protocol)||networkProxy)return;try{const r=await fetchTimed(new URL('api/health',location.href),5000),j=await r.json();networkProxy=j.app==='orellana-atlas';}catch{}if(networkProxy){$('serverInfo').textContent='Servidor del atlas activo. Los catálogos oficiales se consultan a través de un proxy limitado a IGN e IDEEX.';
+ const checkProxy=async()=>{if(!/^https?:$/.test(location.protocol)||networkProxy){proxyKnown=true;return;}try{const r=await fetchTimed(new URL('api/health',location.href),5000),j=await r.json();networkProxy=j.app==='orellana-atlas';}catch{}proxyKnown=true;map.render(true);if(networkProxy){$('serverInfo').textContent='Servidor del atlas activo. Los catálogos oficiales se consultan a través de un proxy limitado a IGN e IDEEX.';
   // Catálogos que no se pudieron leer directamente: se releen por el proxy. También los que seguían en curso (su último intento directo
   // puede fallar justo después de esta comprobación; antes quedaban sin leer toda la sesión).
   for(const[k,src]of Object.entries(SOURCES))(sourcePromises.get(k)||Promise.resolve()).then(()=>{if(src.catalogState==='Catálogo no accesible'){sourcePromises.delete(k);capPromises.clear();resolveSource(k,true);}});
-  // Las primeras imágenes de caminos se pidieron directas a la Junta (otro origen): se vuelven a pedir por el proxy para poder leerlas (ficha al tocar, imágenes vacías).
-  if(slots.roads.visible&&!slots.roads.source?.direct){slots.roads.retry();map.render(true);}}};window.addEventListener('online',checkProxy);setTimeout(checkProxy,0);
+ }};window.addEventListener('online',checkProxy);proxyReady=checkProxy();
  if('serviceWorker' in navigator&&window.isSecureContext)navigator.serviceWorker.register('sw.js').catch(()=>{});
  $('serverInfo').textContent=networkProxy?'Servidor del atlas activo. Los catálogos oficiales se consultan a través de un proxy limitado a IGN e IDEEX.':'Modo directo: las imágenes se piden al proveedor. Si el catálogo IDEEX falla por CORS, utiliza el lanzador del proyecto (server.py) o un despliegue con su proxy.';
  if(!window.isSecureContext && /^https?:$/.test(location.protocol)) $('serverInfo').textContent+=' Prueba por HTTP local: el GPS del móvil requiere una dirección HTTPS; puedes marcar el puesto a mano.';
@@ -750,7 +749,7 @@ async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new Rast
  updateBackupReminder();if(needsBackup())toast('Tienes puntos sin copia desde hace días. Pulsa «Guardar copia» y guárdala en Archivos o iCloud.');
  applySources();setTimeout(()=>{if(Object.values(slots).every(s=>!s.stats().loaded)){if(!alertDismissed){$('mapAlert').hidden=false;$('mapAlertText').textContent='La conexión está tardando o no está disponible. Comprueba Internet o revisa Más (⋯) › Conexión de los mapas.';}}},12000);
  // Read-only test surface. No synthetic map data is installed by the application.
- window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
+ window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
 }
 init().catch(e=>{console.error(e);$('welcomeText').textContent='La aplicación no ha podido iniciarse. Abre el archivo en un navegador actualizado.';$('mapWelcome').hidden=false;toast('Error de inicio: '+(e.message||'desconocido'),true);});
 })();
