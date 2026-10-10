@@ -2,10 +2,12 @@
  * Guarda solo la propia app (HTML, manifiesto e iconos), red primero (4 s), para abrirla sin cobertura.
  * No toca las imágenes de mapa: las guardadas en «Mapas sin conexión» (caché cfn-tiles-*) las lee la propia app,
  * y las demás van directas a Internet. Nunca guarda por su cuenta mapas, /api/ ni el tiempo. */
-const CACHE='cfn-shell-v2';
+const CACHE='cfn-shell-v2',VERSION='3';
 const SHELL=['./','./index.html','./manifest.webmanifest','./icon.svg','./apple-touch-icon.png','./icon-192.png','./icon-512.png'];
 self.addEventListener('install',e=>{e.waitUntil(caches.open(CACHE).then(c=>c.addAll(SHELL)).then(()=>self.skipWaiting()));});
 self.addEventListener('activate',e=>{e.waitUntil(caches.keys().then(keys=>Promise.all(keys.filter(k=>k!==CACHE&&!k.startsWith('cfn-tiles')).map(k=>caches.delete(k)))).then(()=>self.clients.claim()));});
+// La app pregunta la versión para el diagnóstico (un worker antiguo no contesta).
+self.addEventListener('message',e=>{if(e.data==='version'&&e.ports?.[0])e.ports[0].postMessage(VERSION);});
 self.addEventListener('fetch',e=>{
   const req=e.request;if(req.method!=='GET')return;
   const url=new URL(req.url);
