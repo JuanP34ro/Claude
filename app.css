@@ -134,7 +134,12 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .temp-btn strong{font-family:var(--engraved);font-size:18px;font-weight:600;font-variant-numeric:lining-nums;color:var(--c-fg)}
 .temp-btn small{font-size:11.5px;color:var(--c-accent);min-height:11px}
 .map-tools .temp-btn.alert{border-color:var(--warm)}.temp-btn.alert small{color:var(--warm)}
-.map-tools #locateBtn.active{color:#77bfff;border-color:#77bfff;background:#173247}
+.map-tools #locateBtn.active{color:#77bfff;border-color:#77bfff;background:#173247}.map-tools #locateBtn.follow{color:#0b2234;background:#77bfff;border-color:#cfe8ff}
+/* Chapa del GPS en la barca: velocidad y rumbo, precisión, puesto; ámbar cuando falta señal. */
+.gps-badge{min-height:44px;padding:6px 12px;font-size:13px;text-align:left;border-color:#77bfff66;cursor:default;animation:badgeIn .4s var(--spring)}
+.gps-badge>span{display:flex;flex-direction:column;line-height:1.25;min-width:0}.gps-badge strong{font-size:13.5px}.gps-badge small{color:var(--c-muted);font-size:11.5px}
+.gps-badge .gps-arrow{width:20px;height:20px;fill:#77bfff;stroke:none;transition:transform .6s ease-out}
+.gps-badge.stale{border-color:var(--warm)}.gps-badge.stale strong{color:var(--warm)}
 @media(max-width:899px){.map-tools .desktop-only{display:none}}
 .compass{width:52px;height:52px;min-height:0;padding:0;border-radius:50%;background:var(--c-bg);border:1px solid var(--c-edge);box-shadow:var(--c-shadow);display:grid;place-items:center;color:var(--c-fg)}
 .compass svg{width:46px;height:46px;overflow:visible}
@@ -168,7 +173,7 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .action-buttons{display:flex;gap:6px}
 #actionBar button{font-size:14px;min-height:44px;padding:8px 12px}
 @media(max-width:699px){#actionBar{left:12px;right:12px;transform:none;width:auto;flex-direction:column;align-items:stretch;padding:12px}.action-label{max-width:none}.action-buttons button{flex:1}}
-.map-alert{position:absolute;top:76px;left:max(12px,env(safe-area-inset-left));right:76px;z-index:11;max-width:440px;background:var(--c-solid);color:var(--c-fg);border:1px solid #705e42;border-radius:14px;padding:14px;box-shadow:var(--c-shadow);font-size:13px;line-height:1.55;animation:riseIn .35s var(--out)}
+.map-alert{position:relative;z-index:11;width:100%;max-width:440px;background:var(--c-solid);color:var(--c-fg);border:1px solid #705e42;border-radius:14px;padding:14px;box-shadow:var(--c-shadow);font-size:13px;line-height:1.55;animation:riseIn .35s var(--out)}
 .map-alert strong{display:block;color:var(--warm);margin-bottom:4px}
 .map-alert .row{margin-top:10px;flex-wrap:wrap}.map-alert button{min-height:40px;font-size:13px;padding:6px 11px}
 .map-welcome{position:absolute;left:50%;top:46%;transform:translate(-50%,-50%);text-align:center;color:var(--muted);pointer-events:none;width:72%;max-width:400px;font-size:13px;line-height:1.7}
@@ -506,7 +511,8 @@ html.night .map-label{fill:#ff3322;stroke:#000;stroke-width:5px}html.night .map-
 html.night #swipe{border-left-color:var(--nr);filter:none}html.night #swipeHandle{background:#2a0300;border-color:var(--nr);color:var(--nr);box-shadow:none}
 html.night .fab-btn{background:#2a0300;border-color:var(--nr);color:var(--nr);box-shadow:none}
 html.night .fab-item.catch i,html.night .fab-item.catch span{background:#000;border-color:var(--nr);color:var(--nr)}
-html.night .gps-mark,html.night .map-tools #locateBtn.active{background:#2a0300;color:var(--nr);border-color:var(--nr);box-shadow:none}
+html.night .gps-mark,html.night .map-tools #locateBtn.active{background:#2a0300;color:var(--nr);border-color:var(--nr);box-shadow:none}html.night .map-tools #locateBtn.follow{background:var(--nr);color:#000}
+html.night .gps-badge{border-color:var(--nr-dim)}html.night .gps-badge .gps-arrow{fill:var(--nr)}html.night .gps-badge.stale{border-color:var(--nr)}
 html.night .scale{color:var(--nr);text-shadow:none}html.night .scale div{border-color:var(--nr);box-shadow:none}
 html.night .attribution{background:#000;color:#b32014}html.night .attribution a{color:#d42b1d}
 html.night .offline-banner{background:#2a0300;color:var(--nr)}

@@ -28,7 +28,8 @@ def main():
                 options['executable_path'] = chromium
             browser = pw.chromium.launch(**options)
             for name, width, height, mobile in [('mobile', 430, 932, True), ('desktop', 1280, 800, False)]:
-                context = browser.new_context(viewport={'width': width, 'height': height}, is_mobile=mobile, has_touch=mobile)
+                context = browser.new_context(viewport={'width': width, 'height': height}, is_mobile=mobile, has_touch=mobile,
+                                              geolocation={'latitude': 39.046, 'longitude': -5.444, 'accuracy': 8}, permissions=['geolocation'])
                 page = context.new_page()
                 errors = []
                 page.on('pageerror', lambda error: errors.append(str(error)))
@@ -69,6 +70,12 @@ def main():
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas')
                 assert page.evaluate('window.OrellanaAtlas.getState().features.length') == 1, 'Storage was not restored'
+                page.locator('[data-go="map"]').click()
+                page.locator('#locateBtn').click()
+                page.wait_for_function('window.OrellanaAtlas.getGps() && window.OrellanaAtlas.getGps().follow', timeout=10000)
+                assert page.locator('#gpsBadge').is_visible() and 'Parado' in page.locator('#gpsMain').inner_text(), 'GPS badge missing'
+                page.locator('#locateBtn').click()
+                assert page.evaluate('window.OrellanaAtlas.getGps()') is None, 'GPS did not stop'
                 page.locator('[data-go="diary"]').click()
                 page.locator('#addCatch').click()
                 page.locator('#catchDialog').wait_for(state='visible')
@@ -100,7 +107,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, quick catch, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, quick catch, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:

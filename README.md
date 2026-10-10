@@ -24,6 +24,15 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
   - Toques discretos en el resto: anillo de la medalla en la tarjeta, LED en los botones de caña de «¡Picada!», LED sobre su spot en el mapa y en la ficha del spot, y el aviso de recebar nombra el color.
   - De noche los avisadores conservan su color atenuado, como en el puesto. El resto del rod pod y de la app sigue en rojo.
   - Con cuatro cañas o más, las etiquetas del rod pod no llevan número (lo identifica el color) y los textos se estrechan si no caben.
+- **GPS en la barca**:
+  - Al activar el GPS, el mapa te sigue. Si lo arrastras, deja de seguirte (el GPS sigue activo); otro toque en el botón vuelve a centrarte. Al pulsarlo mientras te sigue, se apaga.
+  - Mientras te mueves, tu marca es una flecha con la dirección y una línea de a dónde llegarás en 20 s; parado, el punto de siempre. Queda un rastro punteado del recorrido.
+  - Una chapa arriba muestra velocidad (km/h), rumbo, precisión y a qué distancia y rumbo queda el puesto. Si el móvil deja de dar posiciones más de 12 s, lo avisa y la marca se dibuja hueca.
+  - Rumbo y velocidad los da el móvil (en iPhone, solo en movimiento); si no, se calculan con los dos últimos puntos.
+  - **Apuntar** en movimiento usa el rumbo GPS («Vira 8° a estribor») en vez de la brújula, que en una barca con motor engaña. Parado o lento, sigue con la brújula.
+  - La pantalla se mantiene encendida con el GPS activo en el mapa: si se apaga, el móvil deja de dar posiciones. Gasta más batería.
+  - Al apagar el GPS tras un recorrido de 40 m o más, se ofrece guardarlo como trazado (Spots › Trazados), con nombre «Recorrido hh:mm».
+  - Comprobado solo con posiciones simuladas en el navegador; pendiente de probar en la barca.
 - **Tutorial nítido**: las palabras aparecen sin desenfoque y la hoja gira sin balanceo; de noche, página oscura con tinta roja.
 
 ### Volver a la versión anterior
