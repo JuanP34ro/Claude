@@ -489,12 +489,15 @@ function thawDraw(live){for(const a of live){const t=a.effect?.target;if(t&&a._p
 // Cuaderno de aprendizaje: varias láminas con pestañas. Cada ilustración se dibuja a tinta cuando aparece en pantalla, una vez por apertura
 // o cambio de lámina (el texto se lee quieto). Se recuerda la última lámina abierta durante la sesión.
 let nbObserver=null,nbChapter=0;
-function nbObserve(){const sc=$('nbScroll'),ch=$$('#notebook .nb-chapter')[nbChapter],keys=ch?[...ch.querySelectorAll('.nb-key')]:[];nbObserver?.disconnect();
- for(const k of $$('#notebook .nb-key')){for(const a of k._anims||[])a.cancel();k._anims=[];k.classList.remove('drawn');}
- const draw=k=>{if(k.classList.contains('drawn'))return;k.classList.add('drawn');tutDraw(k);};
- if(!('IntersectionObserver' in window)||reduceMotion()){keys.forEach(draw);return;}
- nbObserver=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){nbObserver.unobserve(e.target);draw(e.target.closest('.nb-key'));}},{root:sc,threshold:.6});
- for(const k of keys){const art=k.querySelector('.nb-art');if(art)nbObserver.observe(art);else draw(k);}}
+function nbObserve(){const sc=$('nbScroll'),ch=$$('#notebook .nb-chapter')[nbChapter];nbObserver?.disconnect();
+ for(const u of $$('#notebook .nb-key,#notebook .nb-step,#notebook .nb-figure')){for(const a of u._anims||[])a.cancel();u._anims=[];u.classList.remove('drawn');}
+ if(!ch)return;
+ // Lo que se dibuja: la ilustración de cada clave y, en los montajes, cada paso y cada figura por separado, al aparecer en pantalla.
+ const owner=el=>el.closest('.nb-step,.nb-figure')||el.closest('.nb-key'),draw=el=>{const u=owner(el);if(!u||u.classList.contains('drawn'))return;u.classList.add('drawn');tutDraw(u);};
+ const arts=[...ch.querySelectorAll('.nb-key>.nb-art,.nb-step>.tut-art,.nb-figure>.tut-art')];
+ if(!('IntersectionObserver' in window)||reduceMotion()){arts.forEach(draw);return;}
+ nbObserver=new IntersectionObserver(es=>{for(const e of es)if(e.isIntersecting){nbObserver.unobserve(e.target);draw(e.target);}},{root:sc,threshold:.6});
+ for(const a of arts)nbObserver.observe(a);}
 function showNbChapter(i){const chs=$$('#notebook .nb-chapter');nbChapter=clamp(i|0,0,Math.max(0,chs.length-1));chs.forEach((c,k)=>c.hidden=k!==nbChapter);
  $$('#notebook .nb-tab').forEach((t,k)=>{t.setAttribute('aria-selected',String(k===nbChapter));t.tabIndex=k===nbChapter?0:-1;});$('nbScroll').scrollTop=0;nbObserve();}
 function openNotebook(ch=nbChapter){$('notebook').showModal();showNbChapter(ch);}

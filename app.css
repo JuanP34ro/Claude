@@ -479,8 +479,8 @@ dialog.notebook::backdrop{background:#0b0805ee}
  background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' seed='9'/><feColorMatrix values='0 0 0 0 .1  0 0 0 0 .07  0 0 0 0 .04  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>"),radial-gradient(ellipse at 50% -8%,#5a452e 0,transparent 58%),radial-gradient(ellipse at 0 100%,#2d1f13 0,transparent 55%),linear-gradient(180deg,#2b2119,#18120c 55%,#110c08)}
 .nb-close{position:absolute;z-index:4;top:calc(env(safe-area-inset-top,0px) + 8px);right:max(8px,env(safe-area-inset-right,0px));width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:50%;background:#1a130dd9;border:1px solid #6a5434;color:var(--gold);box-shadow:0 2px 12px #000a}
 .nb-book{margin:0;padding:10px 50px 0;text-align:center}
-.nb-tabs{display:grid;grid-template-columns:1fr 1fr;gap:8px;max-width:600px;margin:14px auto 4px}
-.nb-tab{display:flex;align-items:center;gap:9px;min-height:50px;padding:6px 10px;text-align:left;border-radius:12px;border:1px solid #5a4a33;background:#1a130d99;color:#cdb98f;font-family:var(--hand);font-size:15px;line-height:1.2}
+.nb-tabs{display:grid;grid-auto-flow:column;grid-auto-columns:1fr;gap:8px;max-width:600px;margin:14px auto 4px}
+.nb-tab{display:flex;align-items:center;gap:8px;min-height:54px;padding:6px 8px;text-align:left;border-radius:12px;border:1px solid #5a4a33;background:#1a130d99;color:#cdb98f;font-family:var(--hand);font-size:14px;line-height:1.15}
 .nb-tab i{flex:none;display:grid;place-items:center;width:24px;height:24px;border:1px solid #8a6d3b;border-radius:50%;font:600 11.5px/1 var(--engraved);font-style:normal;letter-spacing:.04em;color:var(--gold)}
 .nb-tab[aria-selected="true"]{background:linear-gradient(180deg,#3a2c1d,#20170f);border-color:#c9a45c;color:#f3e7c8;box-shadow:inset 0 1px 0 #ffffff14,0 3px 10px #0008}
 .nb-top{text-align:center;padding:16px 10px 20px;color:#eadcbf}
@@ -510,6 +510,17 @@ dialog.notebook::backdrop{background:#0b0805ee}
 .nb-foot{position:relative;margin:24px 0 0;text-align:center;font:12px/1.5 var(--sans);color:#7a5a32}
 .nb-foot .tut-folio{position:static;display:block;margin-top:8px}
 .nb-foot-src{display:block;margin-top:6px}.nb-foot-src a{color:#7a3418;text-decoration:underline;text-decoration-color:#7a341866;text-underline-offset:2px}
+/* Montajes paso a paso: cuadrícula de pasos, cada uno se dibuja al aparecer */
+.nb-steps{list-style:none;margin:12px 0 8px;padding:0;display:grid;grid-template-columns:1fr 1fr;gap:16px 12px}
+.nb-step{position:relative;margin:0}
+.nb-step .tut-art,.nb-figure .tut-art{display:block;width:100%;height:auto;max-height:none;flex:none;margin:0;border-radius:6px;background:#fffaf026;box-shadow:inset 0 0 0 1px #8a5a2440}
+.nb-step .tut-art .hand{font-size:9px}.nb-step .tut-art .hand.big{font-size:12px}.nb-figure .tut-art .hand{font-size:10px}.nb-figure .tut-art .hand.big{font-size:13px}
+.nb-step p{position:relative;margin:6px 0 0;font-family:var(--hand);font-size:15px;line-height:1.35;color:#2e1d0e}
+.nb-step p b{display:inline-grid;place-items:center;width:21px;height:21px;margin-right:6px;border:1.4px solid #8b3a1a;border-radius:50%;font:700 11px/1 var(--engraved);color:#8b3a1a;vertical-align:1px}
+.nb-figure{position:relative;margin:12px 0 8px}
+.nb-figure figcaption{margin-top:5px;text-align:center;font-family:var(--hand);font-size:15px;color:#6e2a12}
+.nb-step:not(.drawn) .tut-art,.nb-figure:not(.drawn) .tut-art{visibility:hidden}
+@media(max-width:359px){.nb-steps{grid-template-columns:1fr}.nb-tab{font-size:13px}}
 .nb-card{display:flex;align-items:center;gap:12px;width:100%;min-height:66px;margin:0 0 22px;padding:10px 14px;text-align:left;border-radius:16px;border:1px solid #5a4a33;background:radial-gradient(ellipse at 18% 0,#4b3a2899,transparent 70%),linear-gradient(180deg,#261c13,#140f0a);box-shadow:inset 0 1px 0 #ffffff12,0 6px 20px #0008}
 .nb-card-icon{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:50%;border:1px solid #8a6d3b;background:#1a130d;color:var(--gold)}
 .nb-card-text{min-width:0}.nb-card-text b{display:block;font:600 12px/1.3 var(--engraved);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
@@ -550,6 +561,8 @@ html.night :is(.nb-kicker,.nb-src,.nb-src a,.nb-foot,.nb-foot .tut-folio,.nb-foo
 html.night .nb-rule{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 6' preserveAspectRatio='none'><path d='M1 3.7C58 2.2 120 4.6 180 3.1S262 2.3 299 3.5' fill='none' stroke='%23ff3322' stroke-width='1.5' stroke-linecap='round' vector-effect='non-scaling-stroke'/></svg>");opacity:.6}
 html.night .nb-stamp{color:#ff3322;border-color:#ff332299;background:none}
 html.night .nb-close{background:#000;border-color:#6b120a;color:#ff3322;box-shadow:none}
+html.night :is(.nb-step,.nb-figure) .tut-art{background:none;box-shadow:inset 0 0 0 1px #3a0600}html.night :is(.nb-step p,.nb-figure figcaption){color:#ff3322}
+html.night .nb-step p b{border-color:#ff3322;color:#ff3322}html.night .tut-art [fill="#3b2614"]{fill:#ff3322}
 html.night .nb-tab{background:#000;border-color:#6b120a;color:#c42818;box-shadow:none}html.night .nb-tab i{border-color:#6b120a;color:#c42818}
 html.night .nb-tab[aria-selected="true"]{background:#1a0200;border-color:#ff3322;color:#ff3322}html.night .nb-tab[aria-selected="true"] i{border-color:#ff3322;color:#ff3322}
 
