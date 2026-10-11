@@ -385,7 +385,7 @@ dialog[open]::backdrop{animation:fadeIn .25s ease-out}
 .dialog-body{padding:18px 20px}
 .dialog-actions{display:flex;justify-content:flex-end;gap:9px;padding:12px 16px;border-top:1px solid var(--edge);position:sticky;bottom:0;background:var(--panel);z-index:2}
 @media(max-width:699px){
- dialog:not(.tutorial){width:100%;max-width:100%;margin:auto 0 0;border-radius:20px 20px 0 0;border-width:1px 0 0;max-height:94dvh}
+ dialog:not(.tutorial):not(.notebook){width:100%;max-width:100%;margin:auto 0 0;border-radius:20px 20px 0 0;border-width:1px 0 0;max-height:94dvh}
  dialog[open]:not(.tutorial){animation:sheetUp .46s var(--spring)}
  .dialog-body{padding:16px}.dialog-head{padding:10px 10px 10px 16px}
  .dialog-actions{padding:10px 14px calc(10px + var(--safe-b))}
@@ -469,6 +469,46 @@ dialog.tutorial::backdrop{background:#0b0805ee;-webkit-backdrop-filter:none;back
 @media(max-width:699px){.tut-title{font-size:31px}.tut-text{font-size:16px}.tut-page{padding:18px 16px 28px 26px}.tut-page::after{left:18px}.tut-dots{gap:3px}.tut-dots i{width:6px;height:6px;flex:none}#tutSkip{padding:9px 12px}#tutNext{padding:9px 14px}}
 @media(min-height:760px){.tut-art{max-height:340px}}
 @media(max-height:640px){.tut-text{font-size:14.5px;line-height:1.42}.tut-title{font-size:28px}}
+/* ===== 9b. Cuaderno de aprendizaje: láminas de papel sobre piel, con dibujos a tinta que se trazan al llegar a ellos =====
+   Ocupa toda la pantalla en el móvil; todo se desplaza salvo el botón de cerrar. */
+dialog.notebook{background:transparent;border:0;box-shadow:none;padding:0;margin:auto;width:min(640px,100%);max-width:100%;height:100%;max-height:100%;overflow:hidden;color:#2e1d0e}
+dialog.notebook[open]{animation:tutOpen .55s var(--out)}
+dialog.notebook::backdrop{background:#0b0805ee}
+@media(min-width:700px){dialog.notebook{height:min(940px,calc(100dvh - 32px));border-radius:18px;box-shadow:0 25px 80px #000c}}
+.nb-scroll{position:absolute;inset:0;overflow-y:auto;overscroll-behavior:contain;-webkit-overflow-scrolling:touch;padding:calc(env(safe-area-inset-top,0px) + 14px) max(10px,env(safe-area-inset-right,0px)) calc(env(safe-area-inset-bottom,0px) + 30px) max(10px,env(safe-area-inset-left,0px));
+ background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='g'><feTurbulence type='fractalNoise' baseFrequency='1.1' numOctaves='3' seed='9'/><feColorMatrix values='0 0 0 0 .1  0 0 0 0 .07  0 0 0 0 .04  0 0 0 .55 0'/></filter><rect width='100%' height='100%' filter='url(%23g)'/></svg>"),radial-gradient(ellipse at 50% -8%,#5a452e 0,transparent 58%),radial-gradient(ellipse at 0 100%,#2d1f13 0,transparent 55%),linear-gradient(180deg,#2b2119,#18120c 55%,#110c08)}
+.nb-close{position:absolute;z-index:4;top:calc(env(safe-area-inset-top,0px) + 8px);right:max(8px,env(safe-area-inset-right,0px));width:44px;height:44px;padding:0;display:grid;place-items:center;border-radius:50%;background:#1a130dd9;border:1px solid #6a5434;color:var(--gold);box-shadow:0 2px 12px #000a}
+.nb-top{text-align:center;padding:8px 46px 20px;color:#eadcbf}
+.nb-kicker{display:block;font:600 10.5px/1.3 var(--engraved);letter-spacing:.28em;color:#b89a5e;text-transform:uppercase}
+.nb-head{margin:10px 0 0;font-family:var(--engraved);font-weight:600;font-size:clamp(22px,6.6vw,31px);line-height:1.12;letter-spacing:.07em;text-transform:uppercase;color:#e2c587;background:linear-gradient(180deg,#f3e0ad 0%,#d6b26b 50%,#9c783a 100%);-webkit-background-clip:text;background-clip:text;-webkit-text-fill-color:transparent;filter:drop-shadow(0 1px 0 #000) drop-shadow(0 3px 6px #000a)}
+.nb-goldrule{display:block;height:1px;width:min(88%,440px);margin:14px auto 14px;background:linear-gradient(90deg,transparent,#c9a45c 18%,#e2c587 50%,#c9a45c 82%,transparent)}
+.nb-sub{margin:0 auto;max-width:31em;font-family:var(--hand);font-size:17px;line-height:1.42;color:#eadcbf;text-shadow:0 1px 2px #000}
+.nb-paper{position:relative;margin:0 auto;max-width:600px;padding:26px 16px 34px 36px;border-radius:3px 10px 10px 3px;color:#2e1d0e;
+ background:radial-gradient(closest-side,#b78d4a30,transparent) 92% 3%/300px 240px no-repeat,radial-gradient(closest-side,#8a5a242b,transparent) 4% 38%/280px 300px no-repeat,radial-gradient(closest-side,#b78d4a2b,transparent) 96% 71%/260px 260px no-repeat,radial-gradient(closest-side,#8a5a2430,transparent) 10% 98%/320px 260px no-repeat,linear-gradient(90deg,#9c7a46 0,#d9c290 8px,#efe1bd 26px,#f3e7c8 55%,#e8d5a8 100%);
+ box-shadow:inset 0 0 50px #7a4f1c5e,inset 16px 0 18px -12px #5b3a1688,0 16px 50px #000d}
+.nb-paper::before{content:"";position:absolute;inset:0;pointer-events:none;opacity:.55;mix-blend-mode:multiply;border-radius:inherit;background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='220' height='220'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' seed='4'/><feColorMatrix values='0 0 0 0 .42  0 0 0 0 .28  0 0 0 0 .12  0 0 0 .32 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>")}
+.nb-paper::after{content:"";position:absolute;top:0;bottom:0;left:25px;width:1px;background:#b5523a55}
+.nb-intro{position:relative;margin:0 0 4px;font-family:var(--hand);font-size:17.5px;line-height:1.5;text-align:center}
+.nb-intro b,.nb-text b{color:#6e2a12}
+.nb-rule{position:relative;display:block;height:6px;margin:20px 0 18px;background:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 6' preserveAspectRatio='none'><path d='M1 3.7C58 2.2 120 4.6 180 3.1S262 2.3 299 3.5' fill='none' stroke='%233b2614' stroke-width='1.5' stroke-linecap='round' vector-effect='non-scaling-stroke'/></svg>") center/100% 6px no-repeat;opacity:.85}
+.nb-key{position:relative;display:flow-root}
+.nb-key .nb-art{float:left;width:112px;max-height:none;flex:none;margin:2px 12px 6px -6px}
+.nb-key.alt .nb-art{float:right;margin:2px -4px 6px 10px}
+.nb-key:not(.drawn) .nb-art{visibility:hidden}
+.nb-title{position:relative;margin:2px 0 7px;font-family:var(--hand);font-weight:700;font-size:21px;line-height:1.2;color:var(--ink)}
+.nb-text{position:relative;margin:0 0 7px;font-family:var(--hand);font-size:16.5px;line-height:1.47;color:#2e1d0e}
+.nb-src{position:relative;clear:both;margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:12px/1.45 var(--sans);color:#6b4b2a}
+.nb-src a{color:#7a3418;text-decoration:underline;text-decoration-color:#7a341866;text-underline-offset:2px}
+.nb-stamp{display:inline-block;padding:4px 7px 3px;border:1.5px solid #a3271ab3;border-radius:3px;background:#a3271a0d;font:700 9.5px/1 var(--engraved);letter-spacing:.16em;text-transform:uppercase;color:#a3271a;transform:rotate(-3deg)}
+.nb-stamp.exp{color:#7a5a32;border-color:#7a5a3299;background:#7a5a320d}
+.nb-foot{position:relative;margin:24px 0 0;text-align:center;font:12px/1.5 var(--sans);color:#7a5a32}
+.nb-foot .tut-folio{position:static;display:block;margin-top:8px}
+.nb-card{display:flex;align-items:center;gap:12px;width:100%;min-height:66px;margin:0 0 22px;padding:10px 14px;text-align:left;border-radius:16px;border:1px solid #5a4a33;background:radial-gradient(ellipse at 18% 0,#4b3a2899,transparent 70%),linear-gradient(180deg,#261c13,#140f0a);box-shadow:inset 0 1px 0 #ffffff12,0 6px 20px #0008}
+.nb-card-icon{width:42px;height:42px;flex:none;display:grid;place-items:center;border-radius:50%;border:1px solid #8a6d3b;background:#1a130d;color:var(--gold)}
+.nb-card-text{min-width:0}.nb-card-text b{display:block;font:600 12px/1.3 var(--engraved);letter-spacing:.16em;text-transform:uppercase;color:var(--gold)}
+.nb-card-text small{display:block;margin-top:3px;font-family:var(--hand);font-size:15.5px;line-height:1.3;color:#eadcbf}
+.nb-card>.icon:last-child{margin-left:auto;color:var(--accent)}
+@media(max-width:380px){.nb-key .nb-art{width:96px}.nb-text{font-size:16px}.nb-paper{padding-right:12px;padding-left:32px}.nb-paper::after{left:22px}}
 /* ===== 10. Modo noche =====
    Cabecera, pantallas, hojas y ventanas: escala de grises con más contraste y una capa «multiplicar» roja propia de cada bloque,
    para que quede rojo puro sin teñir el mapa. Controles del mapa: variables rojas. Mapa: cada capa con su tono cálido.
@@ -477,13 +517,13 @@ html.night{--text:#fff;--muted:#e6e6e6;--nr:#ff3322;--nr-dim:#6b120a;
  --c-bg:#000;--c-solid:#000;--c-edge:#5a0d06;--c-edge2:#6b120a;--c-fg:#ff3322;--c-muted:#d42b1d;--c-accent:#ff3322;--c-on-bg:#2a0300;--c-on-edge:#ff3322;--c-shadow:none;background:#000}
 html.night body{background:#000}
 html.night :is(header,.screen,.sheet,.spot-sheet){isolation:isolate}
-html.night :is(header,.screen,.sheet,.spot-sheet,dialog:not(.tutorial))>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night :is(header,.screen,.sheet,.spot-sheet,dialog:not(.tutorial):not(.notebook))>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
 html.night :is(header,.screen,.sheet,.spot-sheet)::after{content:"";position:absolute;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:1000;border-radius:inherit}
 html.night :is(.screen,.sheet,.spot-sheet){background:#000}
-html.night body::before,html.night dialog:not(.tutorial)::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
-html.night dialog:not(.tutorial)::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
+html.night body::before,html.night dialog:not(.tutorial):not(.notebook)::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
+html.night dialog:not(.tutorial):not(.notebook)::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
 html.night dialog::backdrop{background:#000}
-html.night dialog:not(.tutorial){box-shadow:none;border-color:#555;clip-path:inset(0 round 18px)}
+html.night dialog:not(.tutorial):not(.notebook){box-shadow:none;border-color:#555;clip-path:inset(0 round 18px)}
 /* Tutorial de noche: papel oscuro y tinta roja, sin filtros ni capas de mezcla (el texto sigue nítido y la pantalla no se ilumina) */
 html.night dialog.tutorial :is(.tut-book,.tut-nav){opacity:calc(1 - var(--night-dim,.15))}
 html.night :is(.tut-page,.leaf-back){background:radial-gradient(ellipse at 80% 8%,#260300,transparent 45%),linear-gradient(90deg,#1a0200 0,#0c0100 7%,#060000 100%);box-shadow:inset 0 0 40px #000,0 0 0 1px #3a0600;color:#ff3322}
@@ -492,6 +532,18 @@ html.night :is(.tut-title,.tut-text,.tut-text b){color:#ff3322}html.night :is(.t
 html.night .tut-art .ink{stroke:#ff3322}html.night .tut-art :is(.hand,.stamp-text){fill:#e02a1a}html.night .tut-art .wash{fill:#ff3322}
 html.night .tut-art .sw{fill:#000;stroke:#ff3322}html.night .tut-art use{display:none}
 html.night :is(.tut-dim,.tut-cast,.leaf-shade){display:none}html.night .leaf-back .tut-page{opacity:.14}
+/* Cuaderno de aprendizaje de noche: como el tutorial, papel negro rojizo y tinta roja; el resto del brillo baja con la intensidad elegida */
+html.night dialog.notebook>*{opacity:calc(1 - var(--night-dim,.15))}
+html.night .nb-scroll{background:#000}
+html.night .nb-paper{background:radial-gradient(ellipse at 80% 2%,#260300,transparent 40%),linear-gradient(90deg,#1a0200 0,#0c0100 26px,#060000 100%);box-shadow:inset 0 0 40px #000,0 0 0 1px #3a0600;color:#ff3322}
+html.night .nb-paper::before{display:none}html.night .nb-paper::after{background:#5a0d06}
+html.night .nb-head{background:none;-webkit-text-fill-color:#ff3322;color:#ff3322;filter:none}html.night .nb-goldrule{background:linear-gradient(90deg,transparent,#6b120a,transparent)}
+html.night :is(.nb-sub,.nb-intro,.nb-intro b,.nb-title,.nb-text,.nb-text b){color:#ff3322;text-shadow:none}
+html.night :is(.nb-kicker,.nb-src,.nb-src a,.nb-foot,.nb-foot .tut-folio){color:#c42818}
+html.night .nb-rule{background-image:url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 300 6' preserveAspectRatio='none'><path d='M1 3.7C58 2.2 120 4.6 180 3.1S262 2.3 299 3.5' fill='none' stroke='%23ff3322' stroke-width='1.5' stroke-linecap='round' vector-effect='non-scaling-stroke'/></svg>");opacity:.6}
+html.night .nb-stamp{color:#ff3322;border-color:#ff332299;background:none}
+html.night .nb-close{background:#000;border-color:#6b120a;color:#ff3322;box-shadow:none}
+
 html.night .tut-nav .ghost{color:var(--nr);border-color:var(--nr-dim)}html.night .tut-nav .primary{background:#2a0300;color:var(--nr);border-color:var(--nr);box-shadow:none;text-shadow:none}
 html.night .tut-dots i{background:#4a0a04}html.night .tut-dots i.on{background:var(--nr)}
 html.night :is(.tiny,.note,.meta,.status,.stat-row small,.screen-meta,.catch-label,.field>label,.spot-log time,.spot-log small){color:#fff}
