@@ -84,6 +84,12 @@ def main():
                 page.locator('#catchSave').click()
                 catch = page.evaluate('window.OrellanaAtlas.getState().catches[0]')
                 assert catch['weightKg'] == 12.5 and catch['outcome'] == 'catch', catch
+                page.locator('#openNotebook').click()
+                page.locator('#notebook').wait_for(state='visible')
+                assert page.locator('#notebook .nb-key').count() >= 5, 'Learning notebook has no keys'
+                assert page.evaluate("[...document.querySelectorAll('#notebook .nb-key')].every(k=>k.querySelector('.nb-stamp')&&k.querySelector('.nb-src a[href^=\"https://\"]'))"), 'A notebook key lacks its stamp or sources'
+                assert page.evaluate('document.getElementById("nbScroll").scrollWidth <= document.getElementById("nbScroll").clientWidth'), 'Notebook overflows horizontally'
+                page.locator('#notebook .nb-close').click()
                 page.locator('[data-go="rods"]').click()
                 page.locator('#rodsAdd').click()
                 page.locator('#rodDialog').wait_for(state='visible')
@@ -107,7 +113,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, quick catch, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, quick catch, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:
