@@ -11,6 +11,15 @@ sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from server import Handler
 from playwright.sync_api import sync_playwright
 
+def wcc_inside(sec, n):
+    """Vertex average of a closed WCC 2026 zone, used as a simulated GPS fix inside it."""
+    import json
+    text = (Path(__file__).resolve().parents[1] / 'wcc2026.js').read_text(encoding='utf-8')
+    data = json.loads(text[text.index('{'):text.rindex('}') + 1])
+    i = next(k for k, p in enumerate(data['pegs']) if data['secs'][p[0]][0] == sec and p[1] == n)
+    zone = data['zones'][i]
+    return [sum(c[0] for c in zone) / len(zone), sum(c[1] for c in zone) / len(zone)]
+
 class QuietHandler(Handler):
     def log_message(self, *args):
         pass
@@ -76,6 +85,26 @@ def main():
                 assert page.locator('#gpsBadge').is_visible() and 'Parado' in page.locator('#gpsMain').inner_text(), 'GPS badge missing'
                 page.locator('#locateBtn').click()
                 assert page.evaluate('window.OrellanaAtlas.getGps()') is None, 'GPS did not stop'
+                # WCC 2026 (capa temporal del concurso): búsqueda, ficha, «Es mi puesto» y zona desde el GPS.
+                page.locator('#layersPill').click()
+                page.locator('#wccEnabled').check()
+                page.locator('#wccSec').select_option(label='Meus')
+                page.locator('#wccNum').fill('8')
+                page.locator('#wccFind button[type="submit"]').click()
+                page.locator('#wccSheet').wait_for(state='visible')
+                assert page.locator('#wccTitle').inner_text() == 'Meus 8', 'WCC peg sheet did not open'
+                page.locator('#wccMineBtn').click()
+                assert page.evaluate('window.OrellanaAtlas.wcc().mine') == 'MEU-8', 'WCC peg not marked as mine'
+                page.locator('#wccClose').click()
+                inside = wcc_inside('Meus', 8)
+                assert page.evaluate('c => window.OrellanaAtlas.wccZoneAt(c).peg', inside) == 'Meus 8'
+                context.set_geolocation({'latitude': inside[1], 'longitude': inside[0], 'accuracy': 6})
+                page.locator('#locateBtn').click()
+                page.wait_for_function("document.getElementById('gpsWcc').textContent.startsWith('Dentro de tu zona')", timeout=10000)
+                page.locator('#locateBtn').click()
+                if page.locator('#traceDialog').is_visible():
+                    page.keyboard.press('Escape')
+                assert page.evaluate('window.OrellanaAtlas.getGps()') is None, 'GPS did not stop after the WCC check'
                 page.locator('[data-go="diary"]').click()
                 page.locator('#addCatch').click()
                 page.locator('#catchDialog').wait_for(state='visible')
@@ -113,7 +142,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, quick catch, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             browser.close()
     finally:

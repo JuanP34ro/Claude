@@ -10,6 +10,8 @@ INICIAR_MAC_LINUX.command
 PROBAR_EN_MOVIL_WINDOWS.bat
 PROBAR_EN_MOVIL_MAC_LINUX.command
 app.js
+wcc2026.js
+tools/
 app.css
 index.template.html
 build.py

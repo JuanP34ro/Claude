@@ -6,7 +6,7 @@ ROOT = Path(__file__).resolve().parent
 
 def render() -> str:
     text = (ROOT / "index.template.html").read_text(encoding="utf-8")
-    for marker, name in (("/*APP_CSS*/", "app.css"), ("/*APP_JS*/", "app.js")):
+    for marker, name in (("/*APP_CSS*/", "app.css"), ("/*WCC_JS*/", "wcc2026.js"), ("/*APP_JS*/", "app.js")):
         if text.count(marker) != 1:
             raise ValueError(f"Expected exactly one {marker} in index.template.html")
         text = text.replace(marker, (ROOT / name).read_text(encoding="utf-8"))

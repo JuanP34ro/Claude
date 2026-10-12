@@ -616,6 +616,33 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 @keyframes titleIn{from{opacity:0;transform:translateY(5px)}}
 @keyframes screenIn{from{opacity:0;transform:translateX(calc(var(--dir)*24px))}to{opacity:1;transform:none}}
 @keyframes screenOut{to{opacity:0;transform:translateX(calc(var(--dir)*-16px))}}
+/* ==== WCC 2026 · capa temporal del concurso (quitar tras el 24-10-2026, ver README) ==== */
+.wcc-num{font:700 10.5px var(--sans);text-anchor:middle;pointer-events:none}
+.wcc-tag{font:700 10px var(--sans);text-anchor:middle;pointer-events:none}
+.map-label.wcc-sec{font-size:10.5px;letter-spacing:.14em;text-anchor:middle;fill:#e2c587}
+.map-label.wcc-area{font-size:10px;letter-spacing:.12em;text-anchor:middle;fill:#ffd9d2}
+.wcc-find{display:grid;grid-template-columns:minmax(0,1fr) 64px auto;gap:8px;margin:10px 0 8px}
+.wcc-find input{text-align:center;min-width:0}.wcc-find select{min-width:0}
+.wcc-row{gap:8px;flex-wrap:wrap}
+.wcc-access{display:flex;width:100%;margin-top:4px;color:var(--text)}
+.wcc-sheet .eyebrow{color:var(--gold)}.wcc-sheet .status{margin:2px 0 10px}
+.wcc-sheet #wccMineBtn.active{border-color:var(--gold);color:var(--gold);background:#2a2014}
+.spot-actions.two{grid-template-columns:repeat(2,1fr)}
+.wcc-h{font-family:var(--engraved);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:18px 0 8px;font-weight:600}
+.wcc-acc{list-style:none;margin:0 0 6px;padding:0;display:grid;gap:8px}
+.wcc-acc li{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:start;border-bottom:1px solid var(--line);padding-bottom:8px}
+.wcc-acc b{display:block;font-size:13.5px}.wcc-acc span{display:block;font-size:13px;color:var(--text);overflow-wrap:anywhere}
+.wcc-acc small{display:block;font-size:12px;color:var(--muted);line-height:1.45;margin-top:2px;overflow-wrap:anywhere}
+.wcc-acc button{min-height:40px;padding:4px 12px}
+.wcc-ico{width:14px;height:14px;border-radius:4px;margin-top:3px;border:1.5px solid #1f1a13}
+.wcc-ico.boat{background:#35255a;border-color:#b99cff;border-radius:7px}.wcc-ico.park{background:#24435c;border-color:#8fc3ea;border-radius:7px}
+.wcc-ico.turn{background:#fff1a8;transform:rotate(45deg) scale(.78)}
+.wcc-pegs{display:flex;flex-wrap:wrap;gap:8px}.wcc-pegs button{min-height:40px}
+.wcc-camp{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px}.wcc-camp .icon{color:var(--gold)}
+.wcc-note{font-size:13.5px;color:var(--text);border-left:2px solid var(--gold);padding-left:10px;margin:0 0 4px;white-space:pre-line}
+.gps-badge small.gps-wcc{font-weight:700;color:var(--c-fg)}.gps-badge small.gps-wcc.ok{color:var(--gold)}.gps-badge small.gps-wcc.warn{color:var(--warm)}
+html.night .gps-badge small.gps-wcc{color:var(--nr)}html.night .map-label.wcc-sec,html.night .map-label.wcc-area{fill:#ff3322}
+/* ==== fin WCC 2026 ==== */
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
 @keyframes sheetDown{to{transform:translateY(100%)}}
 @keyframes popIn{from{opacity:0;transform:translateY(-8px) scale(.97)}}

@@ -12,6 +12,7 @@ Editar `app.js`, `app.css` e `index.template.html`; `index.html` es un artefacto
 `server.py`: biblioteca estándar Python 3.10+, solo loopback por defecto; `--lan` es opt-in.
 `wms_proxy.py`: proxy HTTPS restringido a fuentes IGN/IDEEX predefinidas.
 `api/`: adaptadores de Vercel. No exponer el servidor local de desarrollo a Internet.
+`wcc2026.js` (+ `tools/wcc2026_kml.py`): capa temporal del World Carp Classic 2026 generada desde el KML de la organización, sin nombres de comisarios; quitarla tras el 24-10-2026 como indica README («Capa temporal WCC 2026»).
 `sw.js`: service worker solo para abrir la app sin conexión (HTML, manifiesto, iconos); no intercepta imágenes de mapa. Los mapas que el usuario descarga a propósito en «Mapas sin conexión» (caché `cfn-tiles-*`, solo capas IGN/IDEEX con licencia CC BY 4.0 y su atribución) los lee la propia app con un tiempo límite. No cachear por su cuenta mapas, `/api/` ni Open-Meteo.
 
 ## Comandos
