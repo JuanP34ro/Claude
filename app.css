@@ -514,6 +514,26 @@ dialog.notebook::backdrop{background:#0b0805ee}
 .nb-engraving .hand.nb-label-small{font-size:9.3px}
 .nb-key .nb-engraving{width:128px}
 .nb-key.wide .nb-engraving{width:min(100%,310px)}
+.nb-bait-scene{--nb-food-light:#eee0b8;--nb-food-mid:#c8a676;--nb-food-dark:#82613f;--nb-pop-light:#fff4d5;--nb-pop-mid:#e7cf93;--nb-pop-dark:#af864a;--nb-steel:#705f4c;--nb-glint:#eee0be}
+.nb-bait-scene .nb-food-light{stop-color:var(--nb-food-light)}.nb-bait-scene .nb-food-mid{stop-color:var(--nb-food-mid)}.nb-bait-scene .nb-food-dark{stop-color:var(--nb-food-dark)}
+.nb-bait-scene .nb-pop-light{stop-color:var(--nb-pop-light)}.nb-bait-scene .nb-pop-mid{stop-color:var(--nb-pop-mid)}.nb-bait-scene .nb-pop-dark{stop-color:var(--nb-pop-dark)}
+.nb-bait-scene .nb-steel-fill{fill:var(--nb-steel)}
+.nb-bait-scene .ink.nb-metal-glint,.nb-bait-scene .ink.nb-bait-glint{stroke:var(--nb-glint);stroke-width:.7}
+.nb-bait-scene .ink.nb-grain{stroke-width:.7;opacity:.54}
+.nb-bait-scene .ink.nb-bait-edge{stroke-width:1;opacity:.85}
+.nb-bait-scene .ink.nb-stop{stroke-width:2.2}
+.nb-bait-scene .hand{font-size:14px;--d:1s}
+.nb-bait-scene .nb-bait-body{--d:.4s}.nb-bait-scene .nb-grain{--d:.65s}
+.nb-bait-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:16px 14px;margin:12px 0 18px}
+.nb-bait-grid .nb-bait-card{margin:0;min-width:0}
+.nb-bait-grid .nb-bait-card figcaption{text-align:left;line-height:1.4;color:var(--ink)}
+.nb-bait-card figcaption strong{display:block;margin-bottom:4px;color:#783418;font-size:18px}
+.nb-bait-grid .nb-bait-card .tut-art .hand{font-size:14px}
+.nb-bait-note{border-left:2px solid #a9783b;padding-left:12px}
+@media(max-width:599px){.nb-bait-grid{grid-template-columns:minmax(0,1fr);gap:22px}.nb-key.wide .nb-bait-scene{width:100%}}
+html.night .nb-bait-scene{--nb-food-light:#68130a;--nb-food-mid:#390701;--nb-food-dark:#160200;--nb-pop-light:#a82716;--nb-pop-mid:#5b0d03;--nb-pop-dark:#240300;--nb-steel:#72160c;--nb-glint:#ff3322}
+html.night .nb-bait-scene .sw.nb-bait-body{fill:var(--nb-bait-fill);stroke:none}html.night .nb-bait-scene .sw.nb-steel-fill{fill:var(--nb-steel);stroke:none}
+html.night .nb-bait-card figcaption strong{color:#ff3322}html.night .nb-bait-note{border-color:#8c2010}
 .nb-title{position:relative;margin:2px 0 7px;font-family:var(--hand);font-weight:700;font-size:21px;line-height:1.2;color:var(--ink)}
 .nb-text{position:relative;margin:0 0 7px;font-family:var(--hand);font-size:16.5px;line-height:1.47;color:#2e1d0e}
 .nb-src{position:relative;clear:both;margin:10px 0 0;display:flex;flex-wrap:wrap;align-items:center;gap:6px 10px;font:12px/1.45 var(--sans);color:#6b4b2a}
@@ -528,6 +548,7 @@ dialog.notebook::backdrop{background:#0b0805ee}
 .nb-step{position:relative;margin:0}
 .nb-step .tut-art,.nb-figure .tut-art{display:block;width:100%;height:auto;max-height:none;flex:none;margin:0;border-radius:6px;background:#fffaf026;box-shadow:inset 0 0 0 1px #8a5a2440}
 .nb-step .tut-art .hand{font-size:10px}.nb-step .tut-art .hand.big{font-size:14px}.nb-figure .tut-art .hand{font-size:11px}.nb-figure .tut-art .hand.big{font-size:14px}
+.nb-figure .nb-bait-scene .hand{font-size:14px}
 .nb-step p{position:relative;margin:6px 0 0;font-family:var(--hand);font-size:15px;line-height:1.35;color:#2e1d0e}
 .nb-step p b{display:inline-grid;place-items:center;width:21px;height:21px;margin-right:6px;border:1.4px solid #8b3a1a;border-radius:50%;font:700 11px/1 var(--engraved);color:#8b3a1a;vertical-align:1px}
 .nb-figure{position:relative;margin:12px 0 8px}
