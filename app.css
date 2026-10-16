@@ -692,7 +692,7 @@ html.night .team-badge{border-color:var(--nr-dim)}html.night .team-dot{backgroun
 .wcc-camp{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px}.wcc-camp .icon{color:var(--gold)}
 .wcc-note{font-size:13.5px;color:var(--text);border-left:2px solid var(--gold);padding-left:10px;margin:0 0 4px;white-space:pre-line}
 .gps-badge small.gps-wcc{font-weight:700;color:var(--c-fg)}.gps-badge small.gps-wcc.ok{color:var(--gold)}.gps-badge small.gps-wcc.warn{color:var(--warm)}
-html.night .gps-badge small.gps-wcc{color:var(--nr)}html.night .map-label.wcc-sec,html.night .map-label.wcc-area{fill:#ff3322}
+html.night .gps-badge small.gps-wcc,html.night .gps-badge.stale strong,html.night .team-badge.warn small{color:var(--nr)}html.night .map-label.wcc-sec,html.night .map-label.wcc-area{fill:#ff3322}
 /* ==== fin WCC 2026 ==== */
 @keyframes sheetUp{from{transform:translateY(100%)}to{transform:none}}
 @keyframes sheetDown{to{transform:translateY(100%)}}

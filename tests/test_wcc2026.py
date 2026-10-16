@@ -118,6 +118,8 @@ class ParserTests(unittest.TestCase):
         self.assertEqual(data['routes'][0]['pegs'], [[9, 1], [9, 2]])
         self.assertTrue(any('omitido' in line for line in log))
         self.assertIn('const WCC2026=', K.to_js(data, '01-01-2026'))
+        data['venue'][0]['name'] = 'HQ </script><b>'
+        self.assertNotIn('</', K.to_js(data, '01-01-2026'), 'a name can never close the inline script')
 
 
 class DataTests(unittest.TestCase):

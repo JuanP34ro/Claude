@@ -270,7 +270,7 @@ def to_js(data: dict, exported: str) -> str:
     return ('/* WCC 2026 · capa temporal del concurso (19–24 oct 2026, embalse de Orellana), generada con tools/wcc2026_kml.py\n'
             '   desde el KML del mapa del concurso. Solo geometría y textos de la organización; los comisarios van sin nombres.\n'
             '   Se quita al acabar el concurso: ver «Capa temporal WCC 2026» en README.md. */\n'
-            'const WCC2026=' + json.dumps(data, ensure_ascii=False, separators=(',', ':')) + ';\n')
+            'const WCC2026=' + json.dumps(data, ensure_ascii=False, separators=(',', ':')).replace('</', '<\\/') + ';\n')
 
 
 def main() -> None:
