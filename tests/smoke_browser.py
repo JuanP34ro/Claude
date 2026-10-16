@@ -32,6 +32,7 @@ def team_check(browser, base):
         context = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True, geolocation=geo[who], permissions=['geolocation'])
         page = context.new_page()
         page.on('pageerror', lambda error: errors.append(str(error)))
+        page.on('dialog', lambda dialog: dialog.accept())   # «¿Dejar de compartir?»
         page.route('**/*', lambda route: route.fulfill(status=503, body='offline test') if '/api/wms' in route.request.url
                    else (route.continue_() if route.request.url.startswith(base) else route.abort()))
         page.goto(base, wait_until='domcontentloaded')

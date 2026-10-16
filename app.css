@@ -165,7 +165,7 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .fab-scrim{position:absolute;inset:0;z-index:19;background:#000b;opacity:0;pointer-events:none;transition:opacity .22s}
 #mapShell.fab-open .fab-scrim{opacity:1;pointer-events:auto}
 #mapShell.tool-mode .fab,#mapShell.aiming .fab,#mapShell.tool-mode .map-hint{display:none}
-#swipe{position:absolute;top:0;bottom:0;left:50%;z-index:10;pointer-events:none;border-left:2px solid #f3ead6;filter:drop-shadow(0 0 3px #23201b)}
+#swipe{position:absolute;top:0;bottom:0;left:50%;z-index:10;pointer-events:none;border-left:2px dashed #e2c587aa;filter:drop-shadow(0 0 3px #23201b)}
 #swipeHandle{position:absolute;top:50%;left:-24px;border-radius:50%;width:46px;height:46px;min-height:0;background:var(--gold-grad);color:#1b1408;border:3px solid #f3ead6;display:flex;align-items:center;justify-content:center;box-shadow:0 2px 15px #0006;pointer-events:auto;cursor:ew-resize;touch-action:none;font-size:20px;padding:0}
 #swipeHandle:active{transform:none}
 #swipeHandle:after{content:"↔"}
@@ -570,9 +570,9 @@ html.night .nb-bait-card figcaption strong{color:#ff3322}html.night .nb-bait-not
 html.night{--text:#fff;--muted:#e6e6e6;--nr:#ff3322;--nr-dim:#6b120a;
  --c-bg:#000;--c-solid:#000;--c-edge:#5a0d06;--c-edge2:#6b120a;--c-fg:#ff3322;--c-muted:#d42b1d;--c-accent:#ff3322;--c-on-bg:#2a0300;--c-on-edge:#ff3322;--c-shadow:none;background:#000}
 html.night body{background:#000}
-html.night :is(header,.screen,.sheet,.spot-sheet){isolation:isolate}
-html.night :is(header,.screen,.sheet,.spot-sheet,dialog:not(.tutorial):not(.notebook))>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
-html.night :is(header,.screen,.sheet,.spot-sheet)::after{content:"";position:absolute;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:1000;border-radius:inherit}
+html.night :is(header:not(.nb-top),.screen,.sheet,.spot-sheet){isolation:isolate}
+html.night :is(header:not(.nb-top),.screen,.sheet,.spot-sheet,dialog:not(.tutorial):not(.notebook))>*{filter:grayscale(1) contrast(1.45) brightness(1.08)}
+html.night :is(header:not(.nb-top),.screen,.sheet,.spot-sheet)::after{content:"";position:absolute;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:1000;border-radius:inherit}
 html.night :is(.screen,.sheet,.spot-sheet){background:#000}
 html.night body::before,html.night dialog:not(.tutorial):not(.notebook)::before{content:"";position:fixed;inset:0;background:#000;opacity:var(--night-dim,.15);pointer-events:none;z-index:2147483646}
 html.night dialog:not(.tutorial):not(.notebook)::after{content:"";position:fixed;inset:0;background:#ff1500;mix-blend-mode:multiply;pointer-events:none;z-index:2147483647}
@@ -664,7 +664,7 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 #teamOn .row{gap:8px}#teamOn .row button{display:flex;align-items:center;justify-content:center;gap:8px}#teamOn .row .icon{width:18px;height:18px;color:var(--gold)}
 .team-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
 .team-list li{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
-.team-list b{display:block;font-size:15px;color:var(--gold)}.team-list span{display:block;font-size:13.5px;overflow-wrap:anywhere}.team-list small{color:var(--muted);font-size:12px}
+.team-list li>div>b{display:block;font-size:15px;color:var(--gold)}.team-list span{display:block;font-size:13.5px;overflow-wrap:anywhere}.team-list small{color:var(--muted);font-size:12px}
 .team-acts{display:flex;flex-wrap:wrap;gap:6px}.team-acts button{min-height:44px;padding:4px 12px}
 html.night .team-badge{border-color:var(--nr-dim)}html.night .team-dot{background:var(--nr);border-color:#000}html.night .team-badge.stale .team-dot{background:#000;border-color:var(--nr)}
 /* ==== WCC 2026 · capa temporal del concurso (quitar tras el 24-10-2026, ver README) ==== */
