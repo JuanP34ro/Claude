@@ -4,6 +4,7 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
 
 ## Novedades 0.6 · nueva interfaz
 
+- **Compartir con mi compañero** (+ › Compañero): un código de sala para veros el uno al otro en el mapa mientras los dos tenéis la app abierta, con distancia, vueltas, rumbo y, con la capa del WCC, si está en vuestra zona; apuntar hacia él y guardar un spot en su posición. Ver «Compartir con mi compañero».
 - **World Carp Classic 2026** (capa temporal, Capas › WCC 2026 · puestos): los 182 puestos de los 13 sectores del concurso (19–24 de octubre), los límites de cada puesto en el agua, las zonas sin pesca y de pesca local, los canales de barcos y, si se activan, las rutas, los puntos de barca, los parkings y los puntos de comisarios. Búsqueda por sector y número; ficha con distancia y rumbo desde el GPS, cómo llegar y «Es mi puesto», que marca su zona en dorado y hace que la etiqueta del GPS diga si estás dentro, fuera o en el límite según la precisión. Ver «Capa temporal WCC 2026».
 - **Ilustraciones del cuaderno revisadas**: 42 grabados SVG con anatomía de carpa y cangrejo, textura de cebos, anzuelos con volumen y recorridos del hilo diferenciados. Los montajes conservan la animación a tinta y el modo nocturno rojo. Cada imagen incluye una descripción accesible. Se han contrastado las uniones con las guías de Korda: la masilla del chod va junto al nudo del emerillón inferior; el hinged distingue ojo y anilla del emerillón y especifica el material compatible con sus casquillos. Los cortes del fondo y del agua son esquemas explicativos, sin profundidades ni ubicaciones inventadas.
 - **Cebos bajo el agua**: comparación visual de boilie de fondo, wafter, pop-up en chod y snowman, contrastada con fotos y guías de Korda y Mainline. Cebos con volumen y textura, pelo y uniones visibles, anzuelo apoyado o elevado según la presentación. También se detallan la malla protectora, el maíz de plástico y las chufas cocidas, con referencia de CC Moore. Revisados también el chod, el hinged stiff y el helicóptero asentados en el fondo. Se aclara que el pop-up flota y que es el conjunto contrapesado el que debe bajar lentamente; el equilibrio debe comprobarse con el montaje real.
@@ -201,6 +202,14 @@ Esta versión es una herramienta de estudio y anotación, no un sistema de naveg
 
 Usa **Reintentar capas activas** o **Releer catálogo**. Si una capa falla, no se sustituye por otra y se mantiene visible la advertencia. **Exportar diagnóstico** permite conservar la URL, nombre de capa, proyección y estado de la conexión para revisar el problema.
 
+## Compartir con mi compañero
+
+Cada móvil manda su posición a `api/share` (al moverse unos metros, como mucho cada 3 s, o cada 15 s si está parado) y lee la de los demás cada 4 s si alguien se mueve, o cada 10 s si no. Solo funciona con la app abierta y en primer plano: una web no puede mandar la posición en segundo plano, y lo dice la propia app.
+
+- **Servidor** (`share_relay.py`, `api/share.py`): por sala (código de 8 letras sin 0, O, 1 ni I) guarda solo la última posición de cada móvil, validada y redondeada, con caducidad de 1 a 12 horas; borra las caducadas al leer y la del móvil que pulsa «Dejar de compartir». No registra códigos ni posiciones en los logs, rechaza peticiones de otros orígenes y mensajes de más de 1 KB.
+- **Almacén**: Upstash Redis por REST, con las credenciales solo en el servidor (`UPSTASH_REDIS_REST_URL`/`_TOKEN` o `KV_REST_API_URL`/`_TOKEN`, las que añade la integración de Vercel: proyecto › Storage › Upstash for Redis, plan Free, sin tarjeta). Tras añadirlas hay que volver a desplegar. Sin ellas, Vercel responde 503 y la app lo explica; no se simula nada. En `python server.py` se usa un almacén en memoria.
+- **Consumo**: una pareja que comparte una hora gasta unas 4.000 operaciones del almacén (500.000 gratis al mes en Upstash) y unas 3.000 llamadas a funciones de Vercel; por eso la sala caduca sola.
+
 ## Capa temporal WCC 2026
 
 Solo para el World Carp Classic 2026 (embalse de Orellana, 19–24 de octubre de 2026). Los datos salen del mapa del concurso en Google My Maps (KML exportado el 12-10-2026) y se convierten con `python tools/wcc2026_kml.py mapa.kml`, que escribe `wcc2026.js` (se incluye dentro de `index.html` al reconstruir; Vercel no lo publica aparte).
@@ -210,7 +219,7 @@ Solo para el World Carp Classic 2026 (embalse de Orellana, 19–24 de octubre de
 - **Tu puesto** se guarda aparte, en `orellana-atlas-wcc` (capa encendida, accesos y puesto), sin tocar `orellana-atlas-v1`.
 - **Si la organización cambia el mapa**: exporta de nuevo el KML, ejecuta el conversor, `python build.py` y las pruebas (`tests/test_wcc2026.py` comprueba sectores, puestos, polígonos y que no haya datos personales).
 
-**Quitarla después del concurso**: borrar `wcc2026.js`, `tools/wcc2026_kml.py` y `tests/test_wcc2026.py`; en `index.template.html`, los bloques `<!--wcc:…-->`, `<!--wccsheet:…-->` y `<!--wcchelp:…-->`, el marcador `/*WCC_JS*/` y `<small id="gpsWcc">`; en `app.js`, el bloque «WCC 2026» y sus llamadas (`wccVectors`, `wccTap`, `closeWcc`, `renderWccGps`, `wireWcc`, `wcc:`/`wccZoneAt:` en la superficie de pruebas y el destino libre de `startAim`, que puede quedarse); en `app.css`, el bloque «WCC 2026»; en `build.py`, la entrada `/*WCC_JS*/`; en `.vercelignore`, sus dos líneas; en `tests/smoke_browser.py`, el paso WCC; y estas notas. Después, `python build.py` y las pruebas. La clave `orellana-atlas-wcc` que quede en el móvil no molesta.
+**Quitarla después del concurso**: borrar `wcc2026.js`, `tools/wcc2026_kml.py` y `tests/test_wcc2026.py`; en `index.template.html`, los bloques `<!--wcc:…-->`, `<!--wccsheet:…-->` y `<!--wcchelp:…-->`, el marcador `/*WCC_JS*/` y `<small id="gpsWcc">`; en `app.js`, el bloque «WCC 2026» y sus llamadas (`wccVectors`, `wccTap`, `closeWcc`, `renderWccGps`, `wireWcc`, `wccPartnerZone`, `wcc:`/`wccZoneAt:` en la superficie de pruebas y el destino libre de `startAim`, que puede quedarse); en `app.css`, el bloque «WCC 2026»; en `build.py`, la entrada `/*WCC_JS*/`; en `.vercelignore`, sus dos líneas; en `tests/smoke_browser.py`, el paso WCC; y estas notas. Después, `python build.py` y las pruebas. La clave `orellana-atlas-wcc` que quede en el móvil no molesta.
 
 ## Código y mantenimiento
 

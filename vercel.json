@@ -8,6 +8,10 @@
     },
     "api/health.py": {
       "includeFiles": "wms_proxy.py"
+    },
+    "api/share.py": {
+      "maxDuration": 10,
+      "includeFiles": "share_relay.py"
     }
   },
   "headers": [

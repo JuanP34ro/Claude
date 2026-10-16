@@ -155,6 +155,8 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .fab.open .fab-btn .icon{transform:rotate(135deg)}
 .fab-menu{position:absolute;right:5px;bottom:76px;display:flex;flex-direction:column;align-items:flex-end;gap:12px;pointer-events:none}
 .fab.open .fab-menu{pointer-events:auto}
+/* Móviles bajos (iPhone SE): el menú + con seis opciones no cabe bajo la cabecera; se compacta sin bajar de 44 px. */
+@media(max-height:700px) and (orientation:portrait){.fab-menu{gap:7px;bottom:72px}.fab-item i{width:44px;height:44px}.fab-item span{padding:8px 12px;font-size:14px}}
 .fab-item{display:flex;align-items:center;gap:11px;border:0;background:none;padding:0;min-height:0;opacity:0;transform:translateY(20px) scale(.6);transform-origin:100% 50%;transition:opacity .14s,transform .18s}
 .fab.open .fab-item{opacity:1;transform:none;transition:opacity .2s,transform .44s var(--spring);transition-delay:calc(var(--k)*45ms)}
 .fab-item span{background:var(--c-solid);border:1px solid var(--c-edge2);color:var(--c-fg);border-radius:12px;padding:10px 14px;font-size:15px;font-weight:600;box-shadow:var(--c-shadow);white-space:nowrap}
@@ -651,6 +653,20 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 @keyframes titleIn{from{opacity:0;transform:translateY(5px)}}
 @keyframes screenIn{from{opacity:0;transform:translateX(calc(var(--dir)*24px))}to{opacity:1;transform:none}}
 @keyframes screenOut{to{opacity:0;transform:translateX(calc(var(--dir)*-16px))}}
+/* Compartir con mi compañero */
+.team-badge{min-height:44px;padding:6px 12px;border-color:#ff9f4388;text-align:left;animation:badgeIn .4s var(--spring)}
+.team-badge>span{display:flex;flex-direction:column;line-height:1.25;min-width:0}.team-badge strong{font-size:13.5px}.team-badge small{color:var(--c-muted);font-size:11.5px}
+.team-dot{width:12px;height:12px;border-radius:50%;background:#ff9f43;border:2px solid #fff;flex:none}
+.team-badge.stale .team-dot{background:#29231a;border-color:#ff9f43}.team-badge.warn{border-color:var(--warm)}.team-badge.warn small{color:var(--warm)}
+.team-code{font:700 30px/1.1 var(--sans);letter-spacing:.12em;color:var(--gold);margin:2px 0 12px;font-variant-numeric:tabular-nums}
+.team-or{margin:16px 0 4px;font-size:13px;color:var(--muted)}
+.team-join{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:6px 0 10px}.team-join input{text-transform:uppercase;letter-spacing:.1em;text-align:center;min-width:0}
+#teamOn .row{gap:8px}#teamOn .row button{display:flex;align-items:center;justify-content:center;gap:8px}#teamOn .row .icon{width:18px;height:18px;color:var(--gold)}
+.team-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
+.team-list li{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
+.team-list b{display:block;font-size:15px;color:var(--gold)}.team-list span{display:block;font-size:13.5px;overflow-wrap:anywhere}.team-list small{color:var(--muted);font-size:12px}
+.team-acts{display:flex;flex-wrap:wrap;gap:6px}.team-acts button{min-height:40px;padding:4px 12px}
+html.night .team-badge{border-color:var(--nr-dim)}html.night .team-dot{background:var(--nr);border-color:#000}html.night .team-badge.stale .team-dot{background:#000;border-color:var(--nr)}
 /* ==== WCC 2026 · capa temporal del concurso (quitar tras el 24-10-2026, ver README) ==== */
 .wcc-num{font:700 10.5px var(--sans);text-anchor:middle;pointer-events:none}
 .wcc-tag{font:700 10px var(--sans);text-anchor:middle;pointer-events:none}

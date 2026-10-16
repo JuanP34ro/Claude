@@ -14,6 +14,7 @@ import urllib.parse
 import webbrowser
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from share_relay import MemoryStore, serve_share, store_from_env
 from wms_proxy import send_json, serve_wms
 
 ROOT = Path(__file__).resolve().parent
@@ -24,6 +25,8 @@ STATIC = {
     "/icon-192.png": "icon-192.png", "/icon-512.png": "icon-512.png",
     "/sw.js": "sw.js",
 }
+# Posiciones compartidas: en memoria en la vista local, salvo que el entorno traiga credenciales de Upstash.
+SHARE_STORE = store_from_env() or MemoryStore()
 PRIVATE_NETWORKS = tuple(ipaddress.ip_network(n) for n in (
     "10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16"))
 
@@ -65,10 +68,20 @@ class Handler(SimpleHTTPRequestHandler):
             })
         if path == "/api/wms":
             return serve_wms(self)
+        if path == "/api/share":
+            return serve_share(self, SHARE_STORE)
         if path not in STATIC:
             return self.send_error(404, "Recurso no publicado")
         self.path = "/" + STATIC[path]
         super().do_GET()
+
+    def do_POST(self):
+        if urllib.parse.urlsplit(self.path).path != "/api/share":
+            return self.send_error(405, "Método no permitido")
+        serve_share(self, SHARE_STORE)
+
+    def do_DELETE(self):
+        self.do_POST()
 
     def do_HEAD(self):
         path = urllib.parse.urlsplit(self.path).path
@@ -78,8 +91,9 @@ class Handler(SimpleHTTPRequestHandler):
         super().do_HEAD()
 
     def log_message(self, fmt, *args):
-        # Never log the requested WMS coordinates/full upstream URL.
-        if "/api/wms" not in (str(args[0]) if args else ""):
+        # Never log the requested WMS coordinates/full upstream URL, nor shared rooms or positions.
+        line = str(args[0]) if args else ""
+        if "/api/wms" not in line and "/api/share" not in line:
             super().log_message(fmt, *args)
 
 

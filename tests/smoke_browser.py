@@ -24,6 +24,46 @@ class QuietHandler(Handler):
     def log_message(self, *args):
         pass
 
+def team_check(browser, base):
+    """Two phones share positions through the local server (in-memory relay): create, join, see each other, stop."""
+    geo = {'boat': {'latitude': 39.0064, 'longitude': -5.4068, 'accuracy': 6}, 'bank': {'latitude': 39.0039, 'longitude': -5.4089, 'accuracy': 5}}
+    phones, errors = {}, []
+    for who in geo:
+        context = browser.new_context(viewport={'width': 390, 'height': 844}, is_mobile=True, has_touch=True, geolocation=geo[who], permissions=['geolocation'])
+        page = context.new_page()
+        page.on('pageerror', lambda error: errors.append(str(error)))
+        page.route('**/*', lambda route: route.fulfill(status=503, body='offline test') if '/api/wms' in route.request.url
+                   else (route.continue_() if route.request.url.startswith(base) else route.abort()))
+        page.goto(base, wait_until='domcontentloaded')
+        page.wait_for_function('window.OrellanaAtlas')
+        page.locator('#tutSkip').click()
+        phones[who] = (context, page)
+    boat, bank = phones['boat'][1], phones['bank'][1]
+    members = 'p => window.OrellanaAtlas.team() && window.OrellanaAtlas.team().members.length === p'
+    boat.locator('#fabBtn').click()
+    boat.locator('#teamBtn').click()
+    boat.locator('#teamName').fill('Barca')
+    boat.locator('#teamCreate').click()
+    code = boat.locator('#teamCodeOut').inner_text()
+    assert len(code) == 9 and code[4] == '-', code
+    boat.locator('#teamDialog .close-dialog').first.click()
+    bank.locator('#fabBtn').click()
+    bank.locator('#teamBtn').click()
+    bank.locator('#teamName').fill('Orilla')
+    bank.locator('#teamCodeIn').fill(code)
+    bank.locator('#teamJoin').click()
+    bank.wait_for_function(members, arg=1, timeout=15000)
+    assert bank.evaluate('window.OrellanaAtlas.team().members[0].name') == 'Barca'
+    boat.wait_for_function(members, arg=1, timeout=15000)
+    boat.locator('#teamBadge').click()
+    boat.locator('#teamStop').click()
+    assert boat.evaluate('window.OrellanaAtlas.team()') is None, 'Sharing did not stop'
+    bank.wait_for_function(members, arg=0, timeout=20000)
+    assert not errors, errors
+    for context, _ in phones.values():
+        context.close()
+    print('PASS team: two phones share positions through the relay, see each other and stop')
+
 def main():
     httpd = ThreadingHTTPServer(('127.0.0.1', 0), QuietHandler)
     thread = threading.Thread(target=httpd.serve_forever, daemon=True)
@@ -144,6 +184,7 @@ def main():
                 assert not errors, errors
                 print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
+            team_check(browser, base)
             browser.close()
     finally:
         httpd.shutdown()

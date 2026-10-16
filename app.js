@@ -99,7 +99,7 @@ function gpsFix(p){const c=[p.coords.longitude,p.coords.latitude],at=p.timestamp
  if(course!==null&&prev?.course!==null&&prev)course=(prev.course+(((course-prev.course+540)%360)-180)*.5+360)%360;
  const moving=speed!==null&&speed>=GPS_MOVING&&course!==null;
  gps={coords:c,accuracy:p.coords.accuracy,at,speed,course,moving,follow:prev?prev.follow:true};
- const last=gpsTrail[gpsTrail.length-1];if(!last||distance(last,c)>=Math.max(3,p.coords.accuracy*.3)){gpsTrail.push(c);if(gpsTrail.length>3000)gpsTrail.splice(0,500);}}
+ const last=gpsTrail[gpsTrail.length-1];if(!last||distance(last,c)>=Math.max(3,p.coords.accuracy*.3)){gpsTrail.push(c);if(gpsTrail.length>3000)gpsTrail.splice(0,500);}teamOnFix();}
 function stopGps(){if(gpsWatch!==null)navigator.geolocation.clearWatch(gpsWatch);gpsWatch=null;clearInterval(gpsTick);gpsTick=null;const trail=gpsTrail;gps=null;gpsTrail=[];$('locateBtn').classList.remove('active','follow');$('gpsMark').hidden=true;$('gpsBadge').hidden=true;syncWakeLock();map?.render(false);return trail;}
 const gpsStale=()=>!!gps&&Date.now()-gps.at>GPS_STALE;
 // Chapa del GPS: velocidad y rumbo (o «parado»), precisión, distancia al puesto, y aviso cuando lleva tiempo sin señal.
@@ -227,6 +227,7 @@ function drawVectors(){if(!map)return;let s=wccVectors();const camp=activeCamp()
   const p=map.project(gps.coords),q=map.project(destination(gps.coords,gps.accuracy,90)),rad=Math.hypot(q[0]-p[0],q[1]-p[1]),stale=gpsStale(),x=p[0].toFixed(1),y=p[1].toFixed(1);s+=`<circle cx="${x}" cy="${y}" r="${rad.toFixed(1)}" fill="#77bfff" fill-opacity="${stale?'.05':'.12'}" stroke="#77bfff" stroke-opacity="${stale?'.4':'1'}"${stale?' stroke-dasharray="4 4"':''}/>`;
   if(gps.moving&&!stale){const ahead=map.project(destination(gps.coords,Math.max(15,gps.speed*20),gps.course));s+=`<line x1="${x}" y1="${y}" x2="${ahead[0].toFixed(1)}" y2="${ahead[1].toFixed(1)}" stroke="#77bfff" stroke-width="2" stroke-dasharray="3 4" stroke-opacity=".8"/><g transform="translate(${x} ${y}) rotate(${gps.course.toFixed(1)})"><path d="M0-13 9 9 0 4-9 9Z" fill="#77bfff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g>`;}
   else s+=`<circle cx="${x}" cy="${y}" r="6" fill="${stale?'#29231a':'#77bfff'}" stroke="${stale?'#77bfff':'#fff'}" stroke-width="2"/>`;}
+ s+=teamVectors();
  for(const f of state.features.filter(f=>f.geometry.type==='Point')){const p=map.project(f.geometry.coordinates);if(p[0]<-250||p[0]>map.width+250||p[1]<-100||p[1]>map.height+100)continue;const c=KINDS[f.properties.kind][1],sub=camp&&(state.settings.distLabels||f.id===spotSheetId)&&f.id!==camp.id&&f.properties.kind!=='camp'?`<text x="19" y="18" class="map-label sub">${fmtFromCamp(camp.geometry.coordinates,f.geometry.coordinates).short}</text>`:'';const shape=f.properties.kind==='camp'?'<path d="M-8 7 0-8 8 7Z" fill="currentColor" stroke="#312b22" stroke-width="1.5"/>':'<circle r="5" fill="currentColor"/>';if(f.id===spotSheetId)s+=`<circle class="spot-focus" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="30" fill="none" stroke="#e2c587" stroke-width="2.5"/>`;s+=`<g class="point-marker" data-point-id="${esc(f.id)}" tabindex="0" role="button" aria-label="Editar ${esc(f.properties.name)}" transform="translate(${p[0].toFixed(1)} ${p[1].toFixed(1)})" style="color:${c}"><circle r="24" fill="transparent"/><circle r="14" fill="#29231a" stroke="${c}" stroke-width="2"/>${shape}${rodLeds(f.id)}<text x="19" y="4" class="map-label">${esc(f.properties.name.slice(0,34))}</text>${sub}</g>`;}
  if(pathPick){const p=map.project(pathPick.at),x=p[0].toFixed(1),y=p[1].toFixed(1);s+=`<circle class="spot-focus" cx="${x}" cy="${y}" r="18" fill="none" stroke="#e2c587" stroke-width="2.5"/><circle cx="${x}" cy="${y}" r="4.5" fill="#e2c587" stroke="#1b1408" stroke-width="1.5"/>`;}
  if(offZone){const a=map.project(offZone[0]),b=map.project(offZone[1]),x=Math.min(a[0],b[0]).toFixed(1),y=Math.min(a[1],b[1]).toFixed(1),w=Math.abs(a[0]-b[0]).toFixed(1),h=Math.abs(a[1]-b[1]).toFixed(1);s+=`<rect class="off-zone" x="${x}" y="${y}" width="${w}" height="${h}" fill="#7fd3ff14" stroke="#1f1a13" stroke-width="5"/><rect x="${x}" y="${y}" width="${w}" height="${h}" fill="none" stroke="#7fd3ff" stroke-width="2" stroke-dasharray="8 5"/>`;}
@@ -869,6 +870,8 @@ function renderWcc(){const s=wccSel;if(!s){closeWcc(true);return;}const g=wccPre
  for(const[list,kind,title]of [[WCC.boats,'boat',null],[WCC.parks,'park','Parking'],[WCC.turns,'turn','Cruce']])for(const it of list)if(has(it)){const[a,b]=it.name.split(':');acc.push(row(kind,title||`Barca · ${a}`,title?it.name:(b||'').trim(),it.desc,`<button type="button" data-wcc-at="${it.at[0]},${it.at[1]}">Ver</button>`));}
  $('wccMore').innerHTML=`<h3 class="wcc-h">Cómo llegar</h3>${acc.length?`<ul class="wcc-acc">${acc.join('')}</ul><p class="tiny">Textos de la organización, en inglés. Ver una ruta la resalta en el mapa aunque estén ocultos los accesos.</p>`:'<p class="tiny">El mapa del concurso no indica ruta, barca ni parking para este puesto.</p>'}<h3 class="wcc-h">Puestos vecinos</h3><div class="wcc-pegs">${sib.map(pegBtn).join('')}</div><button type="button" class="wide wcc-camp" id="wccCamp"><svg class="icon"><use href="#i-pin"/></svg>Poner aquí el puesto de la app</button>`;}
 // GPS: dentro o fuera de tu zona, con el margen de la precisión. Cerca del límite no se afirma ni una cosa ni otra.
+// Para «Compartir con mi compañero»: dónde está él respecto a tu zona del concurso.
+function wccPartnerZone(c){if(!WCC||!wcc.on)return '';const z=wccZoneAt(c),m=wccMine();if(z?.area==='no')return 'zona sin pesca';if(m?.zone)return wccInside(c,m.zone)?'en vuestra zona':'fuera de vuestra zona';return z?.peg?`agua de ${z.peg.name}`:'';}
 function wccGpsText(){if(!WCC||!wcc.on||!gps||gpsStale())return null;const c=gps.coords,z=wccZoneAt(c),m=wccMine(),acc=Math.round(gps.accuracy);
  if(z.area==='no')return {t:'Zona sin pesca del concurso',warn:true};
  if(m?.zone){const d=wccEdge(c,m.zone);if(d<=Math.max(5,gps.accuracy))return {t:`En el límite de tu zona · ${Math.round(d)} m (GPS ±${acc} m)`,warn:true};return wccInside(c,m.zone)?{t:`Dentro de tu zona · límite a ${fmtDist(d)}`,ok:true}:{t:`Fuera de tu zona · a ${fmtDist(d)}${z.peg?` · agua de ${z.peg.name}`:''}`,warn:true};}
@@ -897,7 +900,85 @@ function wireWcc(){if(!WCC){$('wccSection')?.remove();return;}wccLoad();
  sheetDrag($('wccSheet'),[$('wccSheet').querySelector('.sheet-grab')],()=>closeWcc());
  syncWccUi();map.render(false);}
 // ==== fin WCC 2026 ====
-async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new RasterSlot($('photoRaster')),topo:new RasterSlot($('topoRaster')),roads:new RasterSlot($('roadsRaster'),true),bath:new RasterSlot($('bathRaster'))};map=new AtlasMap($('map'));wire();wireSession();wireOffline();wirePath();wireWcc();syncControls();renderFeatures();
+// ==== Compartir con mi compañero ====
+// Cada móvil manda su última posición a una sala (código de 8 letras) en api/share y lee la de los demás.
+// Solo mientras la app está abierta y en primer plano: una web no puede mandar la posición en segundo plano.
+// La sala caduca sola (1, 3 o 12 h); el servidor solo guarda la última posición de cada móvil.
+const TEAM_KEY='orellana-atlas-team',TEAM_ABC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789',TEAM_IDS='abcdefghijklmnopqrstuvwxyz234567',TEAM_COLOR='#ff9f43';
+let team=null,teamTimer=null,teamTick=null,teamFails=0;
+const teamRand=(n,abc)=>Array.from(crypto.getRandomValues(new Uint8Array(n)),b=>abc[b%32]).join('');
+const teamFmt=c=>c?`${c.slice(0,4)}-${c.slice(4)}`:'';
+const teamCodeOf=v=>{const c=String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return /^[A-HJ-NP-Z2-9]{8}$/.test(c)?c:null;};
+const teamAgo=s=>s<60?`hace ${Math.max(0,Math.round(s))} s`:s<3600?`hace ${Math.round(s/60)} min`:'hace más de 1 h';
+const teamClock=ms=>new Date(ms).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
+function teamSave(){try{if(team)localStorage.setItem(TEAM_KEY,JSON.stringify({room:team.room,me:team.me,name:team.name,until:team.until}));else localStorage.removeItem(TEAM_KEY);}catch{}}
+async function teamApi(method,q='',body=null){const r=await fetch(new URL('api/share'+q,location.href),{method,cache:'no-store',keepalive:method==='DELETE',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let d={};try{d=await r.json();}catch{}if(!r.ok)throw Object.assign(new Error(d.error||`El servidor ha respondido ${r.status}`),{status:r.status});return d;}
+// Compañeros vistos: posición, edad según el reloj del servidor (no el del móvil) y momento local en que se leyó.
+function teamMates(){if(!team)return [];const now=performance.now();return Object.values(team.members).map(m=>({...m,age:m.age+(now-m.seen)/1000}));}
+// La zona del compañero la da la capa temporal del WCC si sigue en la app (al quitarla, esto deja de mostrarse sin romperse).
+function teamStatusOf(m){const o=aimOrigin(),d=o?distance(o.coords,m.coords):null,b=o?bearing(o.coords,m.coords):0,zone=typeof wccPartnerZone==='function'?wccPartnerZone(m.coords):'';
+ return {d,b,o,zone,text:[d!==null?`${fmtDist(d)} · ${fmtWraps(d)} · ${Math.round(b)}° ${cardinal(b)}`:'',zone].filter(Boolean).join(' · ')};}
+function teamVectors(){if(!team||!map)return '';let s='';for(const m of teamMates()){const p=map.project(m.coords);if(p[0]<-60||p[0]>map.width+60||p[1]<-60||p[1]>map.height+60)continue;const old=m.age>60,x=p[0].toFixed(1),y=p[1].toFixed(1),q=map.project(destination(m.coords,m.acc||0,90)),rad=Math.hypot(q[0]-p[0],q[1]-p[1]);
+ if(m.acc&&rad>9)s+=`<circle cx="${x}" cy="${y}" r="${rad.toFixed(1)}" fill="${TEAM_COLOR}" fill-opacity=".1" stroke="${TEAM_COLOR}" stroke-opacity=".7"${old?' stroke-dasharray="4 4"':''}/>`;
+ s+=m.spd>=GPS_MOVING&&m.crs!==null&&!old?`<g transform="translate(${x} ${y}) rotate(${m.crs})"><path d="M0-13 9 9 0 4-9 9Z" fill="${TEAM_COLOR}" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></g>`:`<circle cx="${x}" cy="${y}" r="7" fill="${old?'#29231a':TEAM_COLOR}" stroke="${old?TEAM_COLOR:'#ffffff'}" stroke-width="2"/>`;
+ s+=`<text x="${(p[0]+13).toFixed(1)}" y="${(p[1]-10).toFixed(1)}" class="map-label">${esc(m.name)}</text><text x="${(p[0]+13).toFixed(1)}" y="${(p[1]+6).toFixed(1)}" class="map-label sub">${esc(teamAgo(m.age))}</text>`;}
+ return s;}
+function renderTeam(full=true){const b=$('teamBadge');if(!b)return;b.hidden=!team;$('teamBtn')?.classList.toggle('active',!!team);if(!team){if($('teamDialog').open)renderTeamDialog();return;}
+ const mates=teamMates().sort((a,c)=>a.age-c.age),m=mates[0];b.classList.toggle('stale',!!m&&m.age>60);b.classList.toggle('warn',!!team.err);
+ if(!m){$('teamMain').textContent='Esperando a tu compañero';$('teamSub').textContent=team.err||`Código ${teamFmt(team.room)} · hasta las ${teamClock(team.until)}`;}
+ else{const st=teamStatusOf(m);$('teamMain').textContent=`${m.name}${mates.length>1?` y ${mates.length-1} más`:''} · ${teamAgo(m.age)}`;$('teamSub').textContent=team.err||(!gps?'Tu GPS está apagado: tu compañero no te ve':st.text);}
+ if($('teamDialog').open)renderTeamDialog(full);}
+function renderTeamDialog(full=true){const on=!!team;$('teamOff').hidden=on;$('teamOn').hidden=!on;$('teamStop').hidden=!on;if(!on)return;
+ $('teamCodeOut').textContent=teamFmt(team.room);$('teamUntil').textContent=`Compartes tu posición hasta las ${teamClock(team.until)}${gps?'':' · enciende el GPS para que te vean'}.`;
+ const st=$('teamStatus');st.className=`status ${team.err?'warn':'ok'}`;st.textContent=team.err||(team.sentAt?`Tu posición se envió ${teamAgo((Date.now()-team.sentAt)/1000)}.`:'Esperando la primera posición del GPS…');
+ const mates=teamMates(),list=$('teamList'),key=mates.map(m=>m.id+':'+m.name).join('|'),stOf=m=>teamStatusOf(m).text||'Activa el GPS o marca tu puesto para ver la distancia',ageOf=m=>`${m.age>60?'Sin noticias ':'Actualizado '}${teamAgo(m.age)}`;
+ if(full||list.dataset.key!==key){list.dataset.key=key;list.innerHTML=mates.length?mates.map(m=>`<li data-team-row="${esc(m.id)}"><div><b>${esc(m.name)}</b><span data-team-st>${esc(stOf(m))}</span><small data-team-age>${esc(ageOf(m))}</small></div><div class="team-acts"><button type="button" data-team-view="${esc(m.id)}">Ver</button><button type="button" data-team-aim="${esc(m.id)}">Apuntar</button><button type="button" data-team-spot="${esc(m.id)}">Guardar spot aquí</button></div></li>`).join(''):'<li class="tiny">Todavía no se ha unido nadie. Pásale el código o el enlace.</li>';return;}
+ for(const m of mates){const row=list.querySelector(`[data-team-row="${CSS.escape(m.id)}"]`);if(!row)continue;row.querySelector('[data-team-st]').textContent=stOf(m);row.querySelector('[data-team-age]').textContent=ageOf(m);}}
+function teamSchedule(ms){clearTimeout(teamTimer);teamTimer=team&&!document.hidden?setTimeout(teamPoll,ms):null;}
+async function teamPoll(){if(!team)return;if(Date.now()>team.until){teamStop(true);toast('Se ha acabado el tiempo: ya no compartes tu posición.');return;}
+ try{const d=await teamApi('GET',`?room=${team.room}`);if(!team)return;const now=performance.now(),seen={};for(const m of d.members||[]){if(m.id===team.me)continue;seen[m.id]={id:m.id,name:m.name,coords:[m.lon,m.lat],acc:m.acc,spd:m.spd,crs:m.crs,age:(d.now-m.at)/1000,seen:now};}
+  team.members=seen;teamFails=0;if(team.err&&!team.sendErr)team.err='';
+  if(aim?.target?.team&&seen[aim.target.team]){aim.target.coords=seen[aim.target.team].coords;updateAim();}
+  renderTeam(false);map?.render(false);teamSchedule(Object.values(seen).some(m=>m.spd>=GPS_MOVING&&m.age<30)?4000:10000);}
+ catch(e){if(!team)return;teamFails++;team.err=e.status===503?e.message:navigator.onLine?`No se pudo leer la sala: ${e.message}`:'Sin conexión: se reintentará.';renderTeam();teamSchedule(Math.min(30000,4000*2**Math.min(3,teamFails)));}}
+// Envío: al moverse unos metros (como mucho cada 3 s) o cada 15 s aunque esté parado, para que el otro sepa que sigue ahí.
+async function teamSend(force=false){if(!team||!gps||gpsStale()||team.sending)return;const now=Date.now(),moved=!team.sentAt||!team.sentCoords||distance(team.sentCoords,gps.coords)>=Math.max(3,gps.accuracy/2);
+ if(!force&&!(now-(team.sentAt||0)>15000||(moved&&now-(team.sentAt||0)>3000)))return;team.sending=true;
+ try{await teamApi('POST','',{room:team.room,member:team.me,name:team.name,lat:gps.coords[1],lon:gps.coords[0],acc:Math.min(5000,Math.round(gps.accuracy*10)/10),spd:gps.speed,crs:gps.course,until:team.until});if(!team)return;team.sentAt=Date.now();team.sentCoords=gps.coords.slice();team.sendErr=false;if(teamFails===0)team.err='';}
+ catch(e){if(!team)return;team.sendErr=true;team.err=e.status===503?e.message:navigator.onLine?`No se pudo enviar tu posición: ${e.message}`:'Sin conexión: tu compañero no recibe tu posición.';}
+ finally{if(team){team.sending=false;renderTeam();}}}
+function teamOnFix(){if(team)teamSend();}
+function teamStart(room,name,hours){const until=Date.now()+hours*3600e3;team={room,me:teamRand(12,TEAM_IDS),name:name.slice(0,24)||'Compañero',until,members:{},err:''};teamFails=0;teamSave();try{localStorage.setItem(TEAM_KEY+'-name',team.name);}catch{}
+ if(gpsWatch===null)$('locateBtn').click();teamSend(true);teamPoll();clearInterval(teamTick);teamTick=setInterval(()=>{if(team){renderTeam(false);teamSend();}},1000);renderTeam();map?.render(false);}
+function teamStop(silent=false){if(!team)return;const {room,me}=team;team=null;clearTimeout(teamTimer);clearInterval(teamTick);teamTimer=teamTick=null;teamSave();if(aim?.target?.team)stopAim();
+ teamApi('DELETE',`?room=${room}&member=${me}`).catch(()=>{});renderTeam();map?.render(false);if(!silent)toast(`Has dejado de compartir tu posición.${gpsWatch!==null?' El GPS sigue encendido: tócalo para apagarlo.':''}`);}
+function teamMate(id){return teamMates().find(m=>m.id===id);}
+async function openTeam(code=null){closeFab();if(!team){$('teamName').value=$('teamName').value||(()=>{try{return localStorage.getItem(TEAM_KEY+'-name')||'';}catch{return '';}})();if(code)$('teamCodeIn').value=teamFmt(code);
+ const chk=$('teamCheck');chk.hidden=false;chk.className='status pending';chk.textContent='Comprobando el servidor…';teamApi('GET','?ping=1').then(()=>{chk.hidden=true;}).catch(e=>{chk.className='status error';chk.textContent=e.status===503?e.message:'No se puede contactar con el servidor. Comprueba la conexión.';});}
+ renderTeamDialog();if(!$('teamDialog').open)$('teamDialog').showModal();}
+function wireTeam(){if(!$('teamDialog'))return;$('teamBtn').onclick=()=>openTeam();$('teamBadge').onclick=()=>openTeam();
+ const name=()=>{const n=$('teamName').value.trim();if(!n){toast('Escribe tu nombre para que tu compañero sepa quién eres.',true);$('teamName').focus();return null;}return n;};
+ $('teamCreate').onclick=()=>{const n=name();if(!n)return;teamStart(teamRand(8,TEAM_ABC),n,Number($('teamHours').value)||3);renderTeamDialog();};
+ $('teamJoin').onclick=()=>{const c=teamCodeOf($('teamCodeIn').value);if(!c){toast('El código tiene 8 letras y números, como ABCD-EFGH.',true);return;}const n=name();if(!n)return;teamStart(c,n,Number($('teamHours').value)||3);renderTeamDialog();};
+ $('teamStop').onclick=()=>{teamStop();renderTeamDialog();};
+ const link=()=>`${location.origin}${location.pathname}#equipo=${team.room}`;
+ $('teamShareLink').onclick=async()=>{if(!team)return;const text=`Únete a mi sala en Carp Field Notes para vernos en el mapa. Código ${teamFmt(team.room)}`;try{if(navigator.share){await navigator.share({title:'Carp Field Notes',text,url:link()});return;}}catch(e){if(e.name==='AbortError')return;}try{await navigator.clipboard.writeText(`${text}: ${link()}`);toast('Enlace copiado.');}catch{toast(`Código: ${teamFmt(team.room)}`);}};
+ $('teamCopy').onclick=async()=>{if(!team)return;try{await navigator.clipboard.writeText(teamFmt(team.room));toast('Código copiado.');}catch{toast(`Código: ${teamFmt(team.room)}`);}};
+ $('teamList').onclick=e=>{const b=e.target.closest('button');if(!b)return;const m=teamMate(b.dataset.teamView||b.dataset.teamAim||b.dataset.teamSpot);if(!m)return;$('teamDialog').close();
+  if(b.dataset.teamView){showMap();map.setView(m.coords,Math.max(map.zoom,16));}
+  else if(b.dataset.teamAim)startAim(null,{name:m.name,coords:m.coords.slice(),team:m.id});
+  else{showMap();openPoint(null,m.coords,'point');$('pointName').value=`Spot de ${m.name} ${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`.slice(0,120);}};
+ document.addEventListener('visibilitychange',()=>{if(!team)return;if(document.hidden)clearTimeout(teamTimer);else{teamPoll();teamSend(true);}});
+ const fromHash=()=>{const m=/^#equipo=([A-Za-z0-9-]+)$/.exec(location.hash),c=m&&teamCodeOf(m[1]);if(!m)return;history.replaceState(null,'',location.pathname+location.search);if(!c){toast('El enlace de la sala no es válido.',true);return;}if(team?.room===c){openTeam();return;}if(team){toast('Ya compartes en otra sala. Déjala antes de unirte a esta.',true);openTeam();return;}openTeam(c);};
+ window.addEventListener('hashchange',fromHash);
+ // Tras recargar (iOS a veces recarga la app al volver a ella) se sigue compartiendo si no ha caducado.
+ let saved=null;try{saved=JSON.parse(localStorage.getItem(TEAM_KEY)||'null');}catch{}
+ if(saved&&teamCodeOf(saved.room)&&/^[a-z2-7]{12}$/.test(saved.me||'')&&saved.until>Date.now()){team={room:saved.room,me:saved.me,name:clean24(saved.name),until:saved.until,members:{},err:''};if(gpsWatch===null)$('locateBtn').click();teamPoll();clearInterval(teamTick);teamTick=setInterval(()=>{if(team){renderTeam(false);teamSend();}},1000);toast(`Sigues compartiendo tu posición (código ${teamFmt(team.room)}) hasta las ${teamClock(team.until)}.`);}
+ else if(saved)teamSave();
+ renderTeam();fromHash();}
+const clean24=v=>String(v||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,24)||'Compañero';
+// ==== fin compartir ====
+async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new RasterSlot($('photoRaster')),topo:new RasterSlot($('topoRaster')),roads:new RasterSlot($('roadsRaster'),true),bath:new RasterSlot($('bathRaster'))};map=new AtlasMap($('map'));wire();wireSession();wireOffline();wirePath();wireWcc();wireTeam();syncControls();renderFeatures();
  let proxyTries=0;const checkProxy=async()=>{if(!/^https?:$/.test(location.protocol)||networkProxy){proxyKnown=true;return;}try{const r=await fetchTimed(new URL('api/health',location.href),5000),j=await r.json();networkProxy=j.app==='orellana-atlas';}catch{}proxyKnown=true;map.render(true);
   // Si el servidor de la app no contesta (arranque en frío, cobertura), se vuelve a probar a los 8 y 30 s; mientras, las imágenes se piden directamente.
   if(!networkProxy&&proxyTries<2)setTimeout(checkProxy,[8000,30000][proxyTries++]);if(networkProxy){$('serverInfo').textContent='Servidor del atlas activo. Los catálogos oficiales se consultan a través de un proxy limitado a IGN e IDEEX.';
@@ -913,7 +994,7 @@ async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new Rast
  updateBackupReminder();if(needsBackup())toast('Tienes puntos sin copia desde hace días. Pulsa «Guardar copia» y guárdala en Archivos o iCloud.');
  applySources();setTimeout(()=>{if(Object.values(slots).every(s=>!s.stats().loaded)){if(!alertDismissed){$('alertZoom').hidden=true;$('mapAlert').hidden=false;$('mapAlertText').textContent='La conexión está tardando o no está disponible. Comprueba Internet o revisa Más (⋯) › Conexión de los mapas.';}}},12000);
  // Read-only test surface. No synthetic map data is installed by the application.
- window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),tileQuery,tileKey,tileCache:()=>({off:tileCacheOff,slow:tileCacheSlow}),swVersion:()=>swVersion,openNotebook,nbChapter:()=>nbChapter,offZone:()=>offZone,wcc:()=>WCC&&{on:wcc.on,access:wcc.access,mine:wcc.mine,sel:wccSel?(wccSel.peg?.name||wccSel.item.name):null,route:wccRoute,pegs:WCC.pegs.length,zones:WCC.zones.filter(Boolean).length,gps:wccGpsText()?.t||null},wccZoneAt:c=>{const z=wccZoneAt(c);return z&&{area:z.area,peg:z.peg?.name||null};},down:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,Math.max(0,Math.round((s.downUntil||0)-performance.now()))])),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
+ window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),tileQuery,tileKey,tileCache:()=>({off:tileCacheOff,slow:tileCacheSlow}),swVersion:()=>swVersion,openNotebook,nbChapter:()=>nbChapter,offZone:()=>offZone,team:()=>team&&{room:team.room,me:team.me,name:team.name,until:team.until,err:team.err||'',sentAt:team.sentAt||0,members:teamMates().map(m=>({id:m.id,name:m.name,coords:m.coords,age:Math.round(m.age)}))},wcc:()=>WCC&&{on:wcc.on,access:wcc.access,mine:wcc.mine,sel:wccSel?(wccSel.peg?.name||wccSel.item.name):null,route:wccRoute,pegs:WCC.pegs.length,zones:WCC.zones.filter(Boolean).length,gps:wccGpsText()?.t||null},wccZoneAt:c=>{const z=wccZoneAt(c);return z&&{area:z.area,peg:z.peg?.name||null};},down:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,Math.max(0,Math.round((s.downUntil||0)-performance.now()))])),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
 }
 init().catch(e=>{console.error(e);$('welcomeText').textContent='La aplicación no ha podido iniciarse. Abre el archivo en un navegador actualizado.';$('mapWelcome').hidden=false;toast('Error de inicio: '+(e.message||'desconocido'),true);});
 })();
