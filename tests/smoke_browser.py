@@ -154,6 +154,9 @@ def main():
                 page.locator('#catchSave').click()
                 catch = page.evaluate('window.OrellanaAtlas.getState().catches[0]')
                 assert catch['weightKg'] == 12.5 and catch['outcome'] == 'catch', catch
+                events = page.evaluate('window.OrellanaAtlas.getState().events')
+                assert [e['kind'] for e in events][-1:] == ['catch'] and events[-1]['kg'] == 12.5, events
+                assert page.locator('#timelineList li').count() >= 1 and page.locator('#exportTimeline').is_visible(), 'Timeline not rendered'
                 page.locator('#openNotebook').click()
                 page.locator('#notebook').wait_for(state='visible')
                 assert page.locator('#notebook .nb-key').count() >= 5, 'Learning notebook has no keys'
@@ -183,7 +186,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, session timeline, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()
