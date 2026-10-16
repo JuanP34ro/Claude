@@ -665,7 +665,7 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 .team-list{list-style:none;margin:12px 0 0;padding:0;display:grid;gap:10px}
 .team-list li{border:1px solid var(--line);border-radius:12px;padding:10px 12px;display:grid;gap:8px}
 .team-list b{display:block;font-size:15px;color:var(--gold)}.team-list span{display:block;font-size:13.5px;overflow-wrap:anywhere}.team-list small{color:var(--muted);font-size:12px}
-.team-acts{display:flex;flex-wrap:wrap;gap:6px}.team-acts button{min-height:40px;padding:4px 12px}
+.team-acts{display:flex;flex-wrap:wrap;gap:6px}.team-acts button{min-height:44px;padding:4px 12px}
 html.night .team-badge{border-color:var(--nr-dim)}html.night .team-dot{background:var(--nr);border-color:#000}html.night .team-badge.stale .team-dot{background:#000;border-color:var(--nr)}
 /* ==== WCC 2026 · capa temporal del concurso (quitar tras el 24-10-2026, ver README) ==== */
 .wcc-num{font:700 10.5px var(--sans);text-anchor:middle;pointer-events:none}
@@ -684,11 +684,11 @@ html.night .team-badge{border-color:var(--nr-dim)}html.night .team-dot{backgroun
 .wcc-acc li{display:grid;grid-template-columns:14px minmax(0,1fr) auto;gap:10px;align-items:start;border-bottom:1px solid var(--line);padding-bottom:8px}
 .wcc-acc b{display:block;font-size:13.5px}.wcc-acc span{display:block;font-size:13px;color:var(--text);overflow-wrap:anywhere}
 .wcc-acc small{display:block;font-size:12px;color:var(--muted);line-height:1.45;margin-top:2px;overflow-wrap:anywhere}
-.wcc-acc button{min-height:40px;padding:4px 12px}
+.wcc-acc button{min-height:44px;padding:4px 12px}
 .wcc-ico{width:14px;height:14px;border-radius:4px;margin-top:3px;border:1.5px solid #1f1a13}
 .wcc-ico.boat{background:#35255a;border-color:#b99cff;border-radius:7px}.wcc-ico.park{background:#24435c;border-color:#8fc3ea;border-radius:7px}
 .wcc-ico.turn{background:#fff1a8;transform:rotate(45deg) scale(.78)}
-.wcc-pegs{display:flex;flex-wrap:wrap;gap:8px}.wcc-pegs button{min-height:40px}
+.wcc-pegs{display:flex;flex-wrap:wrap;gap:8px}.wcc-pegs button{min-height:44px}
 .wcc-camp{margin-top:16px;display:flex;align-items:center;justify-content:center;gap:8px}.wcc-camp .icon{color:var(--gold)}
 .wcc-note{font-size:13.5px;color:var(--text);border-left:2px solid var(--gold);padding-left:10px;margin:0 0 4px;white-space:pre-line}
 .gps-badge small.gps-wcc{font-weight:700;color:var(--c-fg)}.gps-badge small.gps-wcc.ok{color:var(--gold)}.gps-badge small.gps-wcc.warn{color:var(--warm)}
