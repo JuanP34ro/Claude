@@ -166,6 +166,27 @@ def main():
                 events = page.evaluate('window.OrellanaAtlas.getState().events')
                 assert [e['kind'] for e in events][-1:] == ['catch'] and events[-1]['kg'] == 12.5, events
                 assert page.locator('#timelineList li').count() >= 1 and page.locator('#exportTimeline').is_visible(), 'Timeline not rendered'
+                # WCC 2026 programme: countdown card in Diario, the same model at fixed times, the agenda dialog and a venue on the map
+                model = page.evaluate('window.OrellanaAtlas.wccProg()')
+                if model:
+                    assert page.locator('#wccProg').is_visible() and page.locator('#wccProgMain').inner_text() == model['main'], model
+                else:
+                    assert page.locator('#wccProg').is_hidden(), 'programme card shown after the contest'
+                at = lambda iso: page.evaluate('t => window.OrellanaAtlas.wccProg(Date.parse(t))', iso)
+                before, during, after = at('2026-10-19T13:00:00+02:00'), at('2026-10-22T18:48:00+02:00'), at('2026-10-24T09:00:00+02:00')
+                assert before['main'] == 'La pesca empieza en 1 h' and before['next']['title'].startswith('Actualización'), before
+                assert during['main'] == 'Quedan 1 d 13 h de pesca' and during['next']['title'].startswith('Ceremonia de clausura'), during
+                assert after['phase'] == 'after' and after['next']['when'] == 'hoy, 15:00', after
+                assert at('2026-10-17T10:00:00+02:00')['cur'] == {'title': 'Inscripción', 'until': '17:00'}
+                assert at('2026-10-26T12:00:00+02:00') is None, 'the programme must go quiet after the contest'
+                page.locator('#wccProg').evaluate('b => { b.hidden = false; b.click(); }')
+                page.locator('#wccProgDialog').wait_for(state='visible')
+                assert page.locator('#wccProgList .wcc-ev').count() == 12 and page.locator('#wccProgSource a[href^="https://www.worldcarpclassic.com/"]').count() == 1
+                page.locator('#wccProgList [data-wcc-venue="Opening and Closing ceremony"]').first.click()
+                page.locator('#wccSheet').wait_for(state='visible')
+                assert page.locator('#wccTitle').inner_text() == 'Opening and Closing ceremony' and page.evaluate('window.OrellanaAtlas.getScreen()') == 'map'
+                page.locator('#wccClose').click()
+                page.locator('[data-go="diary"]').click()
                 # a photo on the catch: reduced, stored in IndexedDB, shown in the Diario card
                 page.locator('[data-catch-edit]').first.click()
                 page.locator('#catchDialog').wait_for(state='visible')
@@ -203,7 +224,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search, zone from GPS and programme countdown, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()

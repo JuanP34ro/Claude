@@ -18,6 +18,24 @@ ALIAS = {s.lower(): s for s, _ in SECTIONS}
 ALIAS.update({'nikl': 'Nikl Carp Specialist', 'chasing': 'Chasing | CanFish', 'specimen': 'Specimen Baits', 'tkc': 'The Key Carp Fishing',
               'carp-couture': 'Carp Couture', 'pb': 'PB Products', 'key': 'The Key Carp Fishing'})
 PEGS_PER_SECTION = 14
+# Programa oficial (itinerario de worldcarpclassic.com, consultado el 16-10-2026). Horas locales de España (CEST, +02:00);
+# el cambio de hora es el 25 de octubre, después del concurso. kind: start | end | ceremony | info. where: punto del KML (#26WCC).
+AGENDA_SOURCE = 'Itinerario oficial del WCC (worldcarpclassic.com), consultado el 16-10-2026, en hora de España. Si la organización cambia algo, manda la organización.'
+AGENDA_URL = 'https://www.worldcarpclassic.com/wcc-event-home/wcc-event-itinerary/'
+AGENDA = [
+    {'at': '2026-10-16T10:00:00+02:00', 'title': 'Abre Bivvy City', 'where': 'BoilieLAB Bivvy City', 'kind': 'info'},
+    {'at': '2026-10-16T14:00:00+02:00', 'end': '2026-10-16T19:00:00+02:00', 'title': 'Inscripción', 'kind': 'info'},
+    {'at': '2026-10-17T09:00:00+02:00', 'end': '2026-10-17T17:00:00+02:00', 'title': 'Inscripción', 'kind': 'info'},
+    {'at': '2026-10-17T18:30:00+02:00', 'title': 'Cena de bienvenida', 'kind': 'info'},
+    {'at': '2026-10-18T10:30:00+02:00', 'title': 'Foto oficial y desfile de banderas', 'kind': 'ceremony'},
+    {'at': '2026-10-18T11:30:00+02:00', 'title': 'Ceremonia de apertura', 'where': 'Opening and Closing ceremony', 'kind': 'ceremony'},
+    {'at': '2026-10-18T11:45:00+02:00', 'title': 'Sorteo de puestos; después, a los puestos', 'kind': 'ceremony'},
+    {'at': '2026-10-19T07:00:00+02:00', 'title': 'El resto de pescadores, a sus puestos', 'kind': 'info'},
+    {'at': '2026-10-19T14:00:00+02:00', 'title': 'Empieza la competición · 114 horas sin parar', 'kind': 'start'},
+    {'at': '2026-10-19T20:00:00+02:00', 'title': 'Actualización en directo Lowrance (Facebook del WCC)', 'kind': 'info'},
+    {'at': '2026-10-24T08:00:00+02:00', 'title': 'Termina la competición', 'kind': 'end'},
+    {'at': '2026-10-24T15:00:00+02:00', 'title': 'Ceremonia de clausura y entrega de premios', 'where': 'Opening and Closing ceremony', 'kind': 'ceremony'},
+]
 
 
 def clean(s: str | None) -> str:
@@ -261,7 +279,7 @@ def convert(kml: str | bytes) -> tuple[dict, list[str]]:
     title = clean(doc.findtext('k:name', default='', namespaces=NS)) or 'WCC 2026'
     data = {'source': f'Mapa «{title}» de Google My Maps (KML)', 'secs': [list(s) for s in SECTIONS], 'pegs': pegs, 'zones': zones,
             'open': open_, 'borders': borders, 'areas': areas, 'chan': chan, 'routes': routes, 'turns': turns, 'boats': boats,
-            'parks': parks, 'marshal': marshal, 'venue': venue}
+            'parks': parks, 'marshal': marshal, 'venue': venue, 'agenda': AGENDA, 'agendaSource': AGENDA_SOURCE, 'agendaUrl': AGENDA_URL}
     return data, log
 
 

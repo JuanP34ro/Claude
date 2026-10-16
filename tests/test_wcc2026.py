@@ -151,6 +151,19 @@ class DataTests(unittest.TestCase):
             else:
                 self.assertIn(len(o), (1, 2))
 
+    def test_programme_anchors(self):
+        from datetime import datetime
+        a = self.D['agenda']
+        ats = [datetime.fromisoformat(x['at']) for x in a]
+        self.assertEqual(ats, sorted(ats), 'the programme is in order')
+        self.assertTrue(all(x['title'] and x['kind'] in ('start', 'end', 'ceremony', 'info') for x in a))
+        start = next(x for x in a if x['kind'] == 'start'); end = next(x for x in a if x['kind'] == 'end')
+        self.assertEqual((start['at'], end['at']), ('2026-10-19T14:00:00+02:00', '2026-10-24T08:00:00+02:00'))
+        self.assertEqual((datetime.fromisoformat(end['at']) - datetime.fromisoformat(start['at'])).total_seconds(), 114 * 3600)
+        venues = {v['name'] for v in self.D['venue']}
+        self.assertTrue(all(x.get('where', '') in venues | {''} for x in a), 'every venue named in the programme is a point of the KML')
+        self.assertIn('worldcarpclassic.com', self.D['agendaSource'])
+
     def test_no_personal_data(self):
         for m in self.D['marshal']:
             self.assertEqual(set(m), {'n', 'at'})
