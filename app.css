@@ -657,9 +657,11 @@ html.night .stamp{color:var(--nr)}html.night .stamp-ink{background:#000;box-shad
 .ev-day{font-family:var(--engraved);font-size:12px;letter-spacing:.14em;text-transform:uppercase;color:var(--accent);margin:14px 0 6px;font-weight:600}
 .ev-day:first-child{margin-top:0}
 .ev-list{list-style:none;margin:0;padding:0}
-.ev{display:grid;grid-template-columns:46px 4px minmax(0,1fr);gap:0 10px;padding:7px 0;border-bottom:1px solid var(--line);align-items:start}
+.note-form{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:8px;margin:0 0 12px}
+.ev{display:grid;grid-template-columns:46px 4px minmax(0,1fr) 44px;gap:0 10px;padding:4px 0;border-bottom:1px solid var(--line);align-items:center}
 .ev time{grid-column:1;grid-row:1;font-variant-numeric:tabular-nums;font-size:13.5px;color:var(--muted);padding-top:1px}
-.ev>div{grid-column:3;grid-row:1;min-width:0}
+.ev>div{grid-column:3;grid-row:1;min-width:0;padding:3px 0}
+.ev-del{grid-column:4;grid-row:1;min-height:44px;min-width:44px;padding:0;border:0;background:none;color:var(--muted);font-size:22px;line-height:1}
 .ev::before{content:"";grid-column:2;grid-row:1;width:4px;height:100%;min-height:18px;border-radius:2px;background:var(--muted)}
 .ev-cast::before{background:#5fb4ff}.ev-out::before{background:#938c81}.ev-bait::before{background:#c7f36b}.ev-catch::before{background:var(--gold)}.ev-lost::before,.ev-missed::before{background:#ff7fb0}.ev-rod::before{background:#b99cff}.ev-note::before{background:#f2d16b}.ev-session::before{background:var(--warm)}
 .ev b{display:block;font-size:14px;font-weight:600;color:var(--text);overflow-wrap:anywhere}.ev span{display:block;font-size:13px;color:var(--muted);overflow-wrap:anywhere}
