@@ -147,10 +147,26 @@ class UpstashStore:
             self._call("", ["HDEL", KEY + room, *members])
 
 
+def rest_credentials(env=os.environ):
+    """URL y token REST de Upstash. La integración de Vercel los llama UPSTASH_REDIS_REST_URL/_TOKEN o KV_REST_API_URL/_TOKEN,
+    con el prefijo que se elija al conectar el almacén (p. ej. STORAGE_REST_API_URL). Nunca el token de solo lectura."""
+    preferred = ["UPSTASH_REDIS_REST_URL", "KV_REST_API_URL"]
+    others = sorted(k for k in env if k.endswith(("_REST_API_URL", "_REDIS_REST_URL")) and k not in preferred)
+    for url_key in preferred + others:
+        url, token = env.get(url_key, ""), env.get(url_key[:-3] + "TOKEN", "")
+        if url.startswith("https://") and token:
+            return url, token
+    return None
+
+
+def env_hint(env=os.environ) -> list[str]:
+    """Solo los nombres (nunca los valores) de las variables que parecen del almacén, para saber qué falta."""
+    return sorted(k for k in env if re.search(r"KV|REDIS|UPSTASH", k))[:12]
+
+
 def store_from_env(env=os.environ):
-    url = env.get("UPSTASH_REDIS_REST_URL") or env.get("KV_REST_API_URL")
-    token = env.get("UPSTASH_REDIS_REST_TOKEN") or env.get("KV_REST_API_TOKEN")
-    return UpstashStore(url, token) if url and token else None
+    creds = rest_credentials(env)
+    return UpstashStore(*creds) if creds else None
 
 
 def room_view(store, room: str, now: float) -> list[dict]:
@@ -200,7 +216,7 @@ def serve_share(handler: BaseHTTPRequestHandler, store) -> None:
         q = lambda k: (query.get(k) or [""])[0]
         if handler.command == "GET" and q("ping"):
             if store is None:
-                raise ShareError(503, NOT_CONFIGURED)
+                return send_json(handler, 503, {"error": NOT_CONFIGURED, "variables": env_hint()})
             return send_json(handler, 200, {"ok": True, "store": store.kind})
         if store is None:
             raise ShareError(503, NOT_CONFIGURED)

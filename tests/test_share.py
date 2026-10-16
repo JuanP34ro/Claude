@@ -110,6 +110,15 @@ class UpstashTests(unittest.TestCase):
         self.assertIsNone(S.store_from_env({}))
         self.assertEqual(S.store_from_env({"KV_REST_API_URL": "https://a", "KV_REST_API_TOKEN": "t"}).url, "https://a")
         self.assertEqual(S.store_from_env({"UPSTASH_REDIS_REST_URL": "https://b", "UPSTASH_REDIS_REST_TOKEN": "t"}).url, "https://b")
+        # custom prefix chosen when connecting the store; the read-only token is never used
+        store = S.store_from_env({"STORAGE_REST_API_URL": "https://c", "STORAGE_REST_API_TOKEN": "rw", "STORAGE_REST_API_READ_ONLY_TOKEN": "ro"})
+        self.assertEqual((store.url, store.token), ("https://c", "rw"))
+        self.assertIsNone(S.store_from_env({"KV_REST_API_URL": "https://d", "KV_REST_API_READ_ONLY_TOKEN": "ro"}))
+        self.assertIsNone(S.store_from_env({"REDIS_URL": "rediss://default:x@host:6379"}))
+
+    def test_hint_lists_names_only(self):
+        env = {"KV_REST_API_URL": "https://secret-host", "KV_REST_API_TOKEN": "secret", "REDIS_URL": "rediss://x", "PATH": "/bin"}
+        self.assertEqual(S.env_hint(env), ["KV_REST_API_TOKEN", "KV_REST_API_URL", "REDIS_URL"])
 
 
 class Quiet(server.Handler):
@@ -160,10 +169,12 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(self.call(query=f"?room={ROOM}", headers={"Origin": self.base.split("/api")[0]})[0], 200)
 
     def test_without_store_it_says_so(self):
-        with patch.object(server, "SHARE_STORE", None):
+        with patch.object(server, "SHARE_STORE", None), patch.dict("os.environ", {"REDIS_URL": "rediss://secret"}):
             status, data = self.call(query="?ping=1")
         self.assertEqual(status, 503)
         self.assertIn("Upstash", data["error"])
+        self.assertIn("REDIS_URL", data["variables"])
+        self.assertNotIn("secret", json.dumps(data))
 
     def test_vercel_adapter_does_not_log(self):
         sys.path.insert(0, str(ROOT / "api"))
