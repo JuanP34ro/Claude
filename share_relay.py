@@ -1,7 +1,8 @@
 """Relé de posiciones para «Compartir con mi compañero». Solo biblioteca estándar.
 
 Cada sala (código de 8 letras) guarda únicamente la última posición de cada móvil, con caducidad: sin historial y sin
-registrar coordenadas en los logs. Almacén: Upstash Redis por su API REST si el entorno trae sus credenciales
+registrar coordenadas en los logs. Todo va por POST con el código en el cuerpo, para que tampoco quede en los registros
+de peticiones del alojamiento; solo el «ping» es GET. Almacén: Upstash Redis por su API REST si el entorno trae sus credenciales
 (UPSTASH_REDIS_REST_URL/TOKEN o KV_REST_API_URL/TOKEN, que añade la integración de Vercel); si no, en memoria, solo
 para el servidor local y las pruebas. En Vercel sin credenciales responde 503: no simula un éxito.
 """
@@ -45,8 +46,13 @@ def _num(value, low: float, high: float, field: str) -> float:
     return v
 
 
-def _opt(value, low: float, high: float, field: str, digits: int):
-    return None if value is None else round(_num(value, low, high, field), digits)
+def _clamped(value, low: float, high: float, digits: int):
+    """Velocidad, rumbo y precisión: un dato raro del GPS no invalida la posición, se recorta o se descarta solo."""
+    try:
+        v = float(value)
+    except (TypeError, ValueError):
+        return None
+    return round(min(high, max(low, v)), digits) if math.isfinite(v) else None
 
 
 def clean_name(value) -> str:
@@ -76,9 +82,9 @@ def parse_fix(body: dict, now: float) -> tuple[dict, int]:
         "name": clean_name(body.get("name")),
         "lat": round(_num(body.get("lat"), -90, 90, "lat"), 6),
         "lon": round(_num(body.get("lon"), -180, 180, "lon"), 6),
-        "acc": round(_num(body.get("acc", 0), 0, 5000, "acc"), 1),
-        "spd": _opt(body.get("spd"), 0, 100, "spd", 2),
-        "crs": _opt(body.get("crs"), 0, 360, "crs", 1),
+        "acc": _clamped(body.get("acc"), 0, 5000, 1) or 0,
+        "spd": _clamped(body.get("spd"), 0, 100, 2),
+        "crs": None if _clamped(body.get("crs"), -1e9, 1e9, 1) is None else round(float(body.get("crs")) % 360, 1),
         "at": int(now * 1000),
         "until": int((now + ttl) * 1000),
     }
@@ -92,6 +98,9 @@ class MemoryStore:
     def __init__(self):
         self.rooms: dict[str, tuple[float, dict[str, str]]] = {}
         self.lock = threading.Lock()
+
+    def ping(self) -> bool:
+        return True
 
     def put(self, room: str, member: str, value: str, ttl: int) -> None:
         with self.lock:
@@ -133,6 +142,11 @@ class UpstashStore:
         if any(isinstance(i, dict) and i.get("error") for i in items):
             raise ShareError(502, "El almacén de posiciones ha rechazado la operación.")
         return data
+
+    def ping(self) -> bool:
+        """Escritura y lectura reales: detecta credenciales caducadas o un token de solo lectura antes de salir al agua."""
+        res = self._call("/pipeline", [["SET", KEY + "ping", "1", "EX", "60"], ["GET", KEY + "ping"]])
+        return isinstance(res, list) and len(res) == 2 and res[1].get("result") == "1"
 
     def put(self, room: str, member: str, value: str, ttl: int) -> None:
         self._call("/pipeline", [["HSET", KEY + room, member, value], ["EXPIRE", KEY + room, str(ttl)]])
@@ -189,6 +203,7 @@ def room_view(store, room: str, now: float) -> list[dict]:
 
 
 def send_json(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> None:
+    # Copia deliberada de wms_proxy.send_json: cada función de Vercel lleva solo su propio módulo (includeFiles).
     body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
     handler.send_response(status)
     handler.send_header("Content-Type", "application/json; charset=utf-8")
@@ -200,50 +215,60 @@ def send_json(handler: BaseHTTPRequestHandler, status: int, payload: dict) -> No
 
 
 def _same_origin(handler: BaseHTTPRequestHandler) -> bool:
+    """Solo peticiones de la propia app. El navegador lo declara en Sec-Fetch-Site; si no lo manda, se compara Origin con el host."""
+    site = handler.headers.get("Sec-Fetch-Site", "").lower()
+    if site:
+        return site in ("same-origin", "none")
     origin = handler.headers.get("Origin")
     if not origin:
         return True
-    host = handler.headers.get("X-Forwarded-Host") or handler.headers.get("Host") or ""
-    return urllib.parse.urlsplit(origin).netloc == host
+    hosts = {handler.headers.get("X-Forwarded-Host", ""), handler.headers.get("Host", "")}
+    return urllib.parse.urlsplit(origin).netloc in hosts
 
 
 def serve_share(handler: BaseHTTPRequestHandler, store) -> None:
-    """GET ?ping=1 | GET ?room= | POST {room, member, ...} | DELETE ?room=&member="""
+    """GET ?ping=1 | POST {op: read|put|leave, room, member?, …}. Las lecturas van por POST para no dejar el código en los logs."""
     try:
         if not _same_origin(handler):
             raise ShareError(403, "Origen no permitido.")
-        query = urllib.parse.parse_qs(urllib.parse.urlsplit(handler.path).query)
-        q = lambda k: (query.get(k) or [""])[0]
-        if handler.command == "GET" and q("ping"):
+        if handler.command == "GET":
+            query = urllib.parse.parse_qs(urllib.parse.urlsplit(handler.path).query)
+            if not query.get("ping"):
+                raise ShareError(405, "Método no permitido.")
             if store is None:
                 return send_json(handler, 503, {"error": NOT_CONFIGURED, "variables": env_hint()})
-            return send_json(handler, 200, {"ok": True, "store": store.kind})
+            if not store.ping():
+                raise ShareError(502, "El almacén de posiciones responde, pero no deja escribir. Revisa el token en Vercel.")
+            return send_json(handler, 200, {"ok": True, "store": store.kind, "write": True})
+        if handler.command != "POST":
+            raise ShareError(405, "Método no permitido.")
         if store is None:
             raise ShareError(503, NOT_CONFIGURED)
-        now = time.time()
-        if handler.command == "GET":
-            room = check_room(q("room"))
+        try:
+            length = int(handler.headers.get("Content-Length") or 0)
+        except ValueError:
+            raise ShareError(400, "Mensaje no válido.")
+        if not 0 <= length <= MAX_BODY:
+            raise ShareError(413, "Mensaje demasiado grande.")
+        try:
+            body = json.loads(handler.rfile.read(length).decode("utf-8") or "{}")
+        except (ValueError, UnicodeDecodeError):
+            raise ShareError(400, "Mensaje no válido.")
+        if not isinstance(body, dict):
+            raise ShareError(400, "Mensaje no válido.")
+        now, op, room = time.time(), body.get("op"), check_room(body.get("room"))
+        if op == "read":
             return send_json(handler, 200, {"now": int(now * 1000), "members": room_view(store, room, now)})
-        if handler.command == "POST":
-            try:
-                length = int(handler.headers.get("Content-Length") or 0)
-            except ValueError:
-                raise ShareError(400, "Mensaje no válido.")
-            if not 0 <= length <= MAX_BODY:
-                raise ShareError(413, "Mensaje demasiado grande.")
-            try:
-                body = json.loads(handler.rfile.read(length).decode("utf-8") or "{}")
-            except (ValueError, UnicodeDecodeError):
-                raise ShareError(400, "Mensaje no válido.")
-            if not isinstance(body, dict):
-                raise ShareError(400, "Mensaje no válido.")
-            room, member = check_room(body.get("room")), check_member(body.get("member"))
+        member = check_member(body.get("member"))
+        if op == "put":
             fix, ttl = parse_fix(body, now)
             store.put(room, member, json.dumps(fix, separators=(",", ":")), ttl)
-            return send_json(handler, 200, {"ok": True, "until": fix["until"]})
-        if handler.command == "DELETE":
-            store.delete(check_room(q("room")), check_member(q("member")))
+            # La respuesta trae ya la sala: una sola petición sirve de latido y de lectura.
+            return send_json(handler, 200, {"ok": True, "until": fix["until"], "now": int(now * 1000),
+                                            "members": [m for m in room_view(store, room, now) if m["id"] != member]})
+        if op == "leave":
+            store.delete(room, member)
             return send_json(handler, 200, {"ok": True})
-        raise ShareError(405, "Método no permitido.")
+        raise ShareError(400, "Operación no válida.")
     except ShareError as exc:
         send_json(handler, exc.status, {"error": exc.message})

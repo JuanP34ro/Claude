@@ -5,7 +5,7 @@ Solo biblioteca estándar. Conserva la geometría de la organización tal cual: 
 De los puntos de comisarios solo guarda la posición y el número: sus descripciones llevan nombres de personas.
 """
 from __future__ import annotations
-import json, re, sys, collections
+import json, math, re, sys, collections
 import xml.etree.ElementTree as ET
 from pathlib import Path
 
@@ -16,7 +16,7 @@ SECTIONS = [('Rippton', 'RIP'), ('Dynamite', 'DYN'), ('PB Products', 'PBP'), ('N
 SIDX = {s: i for i, (s, _) in enumerate(SECTIONS)}
 ALIAS = {s.lower(): s for s, _ in SECTIONS}
 ALIAS.update({'nikl': 'Nikl Carp Specialist', 'chasing': 'Chasing | CanFish', 'specimen': 'Specimen Baits', 'tkc': 'The Key Carp Fishing',
-              'carp-couture': 'Carp Couture'})
+              'carp-couture': 'Carp Couture', 'pb': 'PB Products', 'key': 'The Key Carp Fishing'})
 PEGS_PER_SECTION = 14
 
 
@@ -55,9 +55,10 @@ WORD = re.compile(r'\d+\s*-\s*\d+|\d+|[A-Za-z|][A-Za-z|\-]*')
 NOISE = {'access', 'self-boat', 'boat', 'to', 'parking', 'turning', 'point', 'turn', 'for', 'peg', 'pegs', 'and', 'bp'}
 
 
-def peg_refs(text: str) -> list[tuple[str, int]]:
+def peg_refs(text: str, log: list[str] | None = None) -> list[tuple[str, int]]:
     """Puestos citados en el nombre de una ruta, barca o parking: «BP11: Access MEUS 1&2 7-12» → Meus 1, 2 y 7 a 12.
-    Los números sin sector toman el último sector nombrado. «Exit Lines 6,7…» habla de rutas, no de puestos."""
+    Los números sin sector toman el último sector nombrado. «Exit Lines 6,7…» habla de rutas, no de puestos.
+    Una palabra desconocida delante de un número se apunta en el informe: podría ser un sector mal escrito."""
     text = re.sub(r'^\s*(BP\d+|\d+)\s*:\s*', '', clean(text))
     if re.match(r'^exit\b', text, re.I):
         return []
@@ -68,17 +69,94 @@ def peg_refs(text: str) -> list[tuple[str, int]]:
             if t.lower() not in NOISE:
                 words.append(t)
             continue
+        found = None
         for i in range(len(words)):
-            s = section(' '.join(words[i:]))
-            if s:
-                cur = s
+            found = section(' '.join(words[i:]))
+            if found:
+                cur = found
                 break
+        if words and not found and log is not None:
+            log.append(f'palabras sin sector conocido antes de «{t}» en {text!r}: {" ".join(words)!r}')
         words = []
         if cur is None:
             continue
         a, b = (int(x) for x in re.split(r'\s*-\s*', t)) if '-' in t else (int(t), int(t))
         out += [(cur, n) for n in range(a, b + 1) if 1 <= n <= PEGS_PER_SECTION]
     return out
+
+
+# --- Esquinas repetidas: el KML nombra a veces una misma esquina («Trakker 9.2») en dos puntos distintos. No se elige a ojo:
+# se prueba cada punto y los dos juntos, y se queda el contorno simple con más lados sobre las líneas «Borders» de la organización.
+def _metres(c, o):
+    return ((c[0] - o[0]) * 111320 * math.cos(math.radians(o[1])), (c[1] - o[1]) * 110574)
+
+
+def _seg_dist(p, a, b):
+    ax, ay = b[0] - a[0], b[1] - a[1]
+    L = ax * ax + ay * ay
+    t = 0 if L == 0 else max(0, min(1, ((p[0] - a[0]) * ax + (p[1] - a[1]) * ay) / L))
+    return math.hypot(p[0] - a[0] - t * ax, p[1] - a[1] - t * ay)
+
+
+def _simple(pts) -> bool:
+    def orient(a, b, c):
+        return (b[0] - a[0]) * (c[1] - a[1]) - (b[1] - a[1]) * (c[0] - a[0])
+    n = len(pts)
+    for i in range(n):
+        for j in range(i + 1, n):
+            if abs(i - j) in (1, n - 1):
+                continue
+            a, b, c, d = pts[i], pts[(i + 1) % n], pts[j], pts[(j + 1) % n]
+            if orient(c, d, a) * orient(c, d, b) < 0 and orient(a, b, c) * orient(a, b, d) < 0:
+                return False
+    return True
+
+
+def border_score(poly, borders, tol=6.0) -> float:
+    """Fracción de lados que van sobre alguna línea «Borders» (11 muestras por lado a menos de tol m); -1 si el contorno se cruza."""
+    if len(poly) < 3:
+        return -1
+    o = poly[0]
+    m = [_metres(c, o) for c in poly]
+    if not _simple(m):
+        return -1
+    lines = [[_metres(c, o) for c in line] for line in borders]
+    on = 0
+    for i in range(len(m)):
+        a, b = m[i], m[(i + 1) % len(m)]
+        ok = True
+        for s in range(11):
+            p = (a[0] + (b[0] - a[0]) * s / 10, a[1] + (b[1] - a[1]) * s / 10)
+            if not any(_seg_dist(p, line[j], line[j + 1]) < tol for line in lines for j in range(len(line) - 1)):
+                ok = False
+                break
+        on += ok
+    return on / len(m)
+
+
+def resolve_corners(named: dict[int, list[tuple[str, list[float]]]], borders, label: str, log: list[str]) -> list[list[float]]:
+    """named: índice de esquina → [(nombre del placemark, posición), …] en el orden del KML, sin posiciones repetidas."""
+    ks = sorted(named)
+    dups = [k for k in ks if len(named[k]) > 1]
+    if not dups:
+        return [named[k][0][1] for k in ks]
+    if len(dups) > 1 or len(named[dups[0]]) > 2 or len(ks) < 3:
+        log.append(f'esquinas repetidas en {label}: se usa la primera de cada una (caso sin resolver automáticamente)')
+        return [named[k][0][1] for k in ks]
+    k = dups[0]
+    (na, a), (nb, b) = named[k]
+    near = [line for line in borders if any(abs(c[0] - a[0]) < .03 and abs(c[1] - a[1]) < .03 for c in line)]
+    options = [(f'solo «{na}»', [a]), (f'solo «{nb}»', [b]), (f'las dos, «{na}» y luego «{nb}»', [a, b]), (f'las dos, «{nb}» y luego «{na}»', [b, a])]
+    scored = []
+    for what, pts in options:
+        poly = [p for kk in ks for p in (pts if kk == k else [named[kk][0][1]])]
+        scored.append((border_score(poly, near), what, poly))
+    scored.sort(key=lambda x: -x[0])
+    best = scored[0]
+    log.append(f'esquina {label}.{k} repetida en dos puntos ({round(math.hypot(*_metres(b, a)))} m): se usa {best[1]} '
+               f'({round(best[0] * len(best[2]))} de {len(best[2])} lados sobre líneas de la organización; '
+               + ', '.join(f'{w}: {round(s * len(pl)) if s >= 0 else "se cruza"}' for s, w, pl in scored[1:]) + ')')
+    return best[2]
 
 
 def _name(pm) -> str:
@@ -109,8 +187,8 @@ def _color(pm) -> str | None:
     return '#' + m.group(1).lower() if m else None
 
 
-def _refs(text: str) -> list[list[int]]:
-    return [[SIDX[s], n] for s, n in peg_refs(text)]
+def _refs(text: str, log: list[str]) -> list[list[int]]:
+    return [[SIDX[s], n] for s, n in peg_refs(text, log)]
 
 
 def convert(kml: str | bytes) -> tuple[dict, list[str]]:
@@ -126,27 +204,29 @@ def convert(kml: str | bytes) -> tuple[dict, list[str]]:
             raise ValueError(f'puesto con nombre inesperado: {_name(p)!r}')
         pegs.append([SIDX[s], int(m.group(2))] + _coords(p)[0])
     pegs.sort(key=lambda r: (r[0], r[1]))
-    corners: dict[tuple[int, int], dict[int, list[float]]] = collections.defaultdict(dict)
+    corners: dict[tuple[int, int], dict[int, list[tuple[str, list[float]]]]] = collections.defaultdict(lambda: collections.defaultdict(list))
     for p in F['Peg co-ordinates'].findall('.//k:Placemark', NS):
         at = _coords(p)[0]
         for s, n, k in corner_refs(_name(p)):
-            corners[(SIDX[s], n)][k] = at
+            have = corners[(SIDX[s], n)][k]
+            if at not in [x[1] for x in have]:
+                have.append((_name(p), at))
+    borders = [_coords(p) for p in F['Borders'].findall('.//k:Placemark', NS)]
     zones, open_ = [], []
     for s, n, *_ in pegs:
         cs = corners.get((s, n), {})
-        pts = [cs[k] for k in sorted(cs)]
+        pts = resolve_corners(cs, borders, f'{SECTIONS[s][0]} {n}', log)
         zones.append(pts if len(pts) >= 3 else 0)
         open_.append(pts if len(pts) < 3 else 0)
         if len(pts) < 3:
             log.append(f'zona sin cerrar: {SECTIONS[s][0]} {n} ({len(pts)} esquina(s) con su nombre)')
-    borders = [_coords(p) for p in F['Borders'].findall('.//k:Placemark', NS)]
     areas = [{'kind': 'local' if 'local' in _name(p).lower() else 'no', 'pts': _coords(p.find('.//k:outerBoundaryIs', NS))}
              for p in F['NO fishing zone'].findall('.//k:Placemark', NS)]
     chan = [_coords(p) for p in F['Boat chanel'].findall('.//k:Placemark', NS)]
     routes, turns = [], []
     for p in F['Access routes'].findall('.//k:Placemark', NS):
         name, desc = _name(p), _desc(p)
-        item = {'name': name, 'desc': desc, 'pegs': _refs(name)}
+        item = {'name': name, 'desc': desc, 'pegs': _refs(name, log)}
         if _kind(p) == 'LineString':
             m = re.match(r'^(\d+)\s*:', name)
             item.update(num=m.group(1) if m else '', color=_color(p) or '#e2c587', pts=_coords(p))
@@ -159,8 +239,8 @@ def convert(kml: str | bytes) -> tuple[dict, list[str]]:
         if not _name(p):
             log.append('punto de barca sin nombre: omitido')
             continue
-        boats.append({'name': _name(p), 'desc': _desc(p), 'at': _coords(p)[0], 'pegs': _refs(_name(p))})
-    parks = [{'name': _name(p), 'desc': _desc(p), 'at': _coords(p)[0], 'pegs': _refs(_name(p))}
+        boats.append({'name': _name(p), 'desc': _desc(p), 'at': _coords(p)[0], 'pegs': _refs(_name(p), log)})
+    parks = [{'name': _name(p), 'desc': _desc(p), 'at': _coords(p)[0], 'pegs': _refs(_name(p), log)}
              for p in F['Car parking location'].findall('.//k:Placemark', NS)]
     marshal = []
     for p in F['Marshaling points'].findall('.//k:Placemark', NS):

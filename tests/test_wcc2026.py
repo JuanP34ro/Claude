@@ -60,6 +60,31 @@ class ParserTests(unittest.TestCase):
                          [('Meus', 13), ('Meus', 14)] + [('The Key Carp Fishing', n) for n in range(1, 15)] + [('Trakker', 1)])
         self.assertEqual(K.peg_refs('Exit Lines 6,7,8,9 & 17'), [])
         self.assertEqual(K.peg_refs('Parking'), [])
+        self.assertEqual(K.peg_refs('Specimen 1-2 and PB 4-5'), [('Specimen Baits', 1), ('Specimen Baits', 2), ('PB Products', 4), ('PB Products', 5)])
+        log = []
+        self.assertEqual(K.peg_refs('Zzz 3', log), [], 'an unknown word before a number never becomes a peg')
+        self.assertTrue(log and 'Zzz' in log[0], log)
+
+    def test_duplicate_corner_is_settled_by_the_border_lines(self):
+        def pm(name, geom):
+            return f'<Placemark><name>{name}</name>{geom}</Placemark>'
+        pt = lambda x, y: f'<Point><coordinates>{x},{y},0</coordinates></Point>'
+        line = lambda *c: '<LineString><coordinates>' + ' '.join(f'{x},{y},0' for x, y in c) + '</coordinates></LineString>'
+        folder = lambda name, *items: f'<Folder><name>{name}</name>{"".join(items)}</Folder>'
+        c1, c2, a, b, c4 = (-5.401, 39.001), (-5.401, 39.002), (-5.399, 39.002), (-5.399, 39.003), (-5.399, 39.001)
+        kml = ('<?xml version="1.0" encoding="UTF-8"?><kml xmlns="http://www.opengis.net/kml/2.2"><Document>'
+               + folder('Pegs', pm('Meus peg 1', pt(-5.4, 39.0)))
+               # corner 3 is named twice, at two points; the shared name (b) is the geometrically wrong one
+               + folder('Peg co-ordinates', pm('Meus P1.1', pt(*c1)), pm('Meus P1.2', pt(*c2)), pm('Meus P1.3', pt(*a)),
+                        pm('Meus P1.3 + Meus 2.2', pt(*b)), pm('Meus P1.4', pt(*c4)))
+               + folder('Borders', pm('Line 1', line(c1, c2)), pm('Line 2', line(c2, a)), pm('Line 3', line(a, c4)))
+               + ''.join(folder(n) for n in ('NO fishing zone', 'Boat chanel', 'Marshaling points', 'Access routes', 'Transportation points', '#26WCC', 'Car parking location'))
+               + '</Document></kml>')
+        data, log = K.convert(kml)
+        self.assertEqual(data['zones'][0], [list(c1), list(c2), list(a), list(c4)])
+        self.assertTrue(any('repetida' in line and '3 de 4' in line for line in log), log)
+        self.assertEqual(K.border_score([c1, c2, a, c4], [[c1, c2], [c2, a], [a, c4]]), 0.75)
+        self.assertEqual(K.border_score([c1, a, c2, c4], []), -1, 'a self-crossing outline is rejected')
 
     def test_minimal_kml_keeps_open_zones_open_and_drops_marshal_names(self):
         def pm(name, geom, desc='', style=''):

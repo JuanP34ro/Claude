@@ -108,7 +108,7 @@ function unfollowGps(){if(!gps||!gps.follow)return;gps.follow=false;$('locateBtn
 // Al apagar el GPS tras un recorrido, se ofrece guardarlo como trazado (misma ficha que «Medir»).
 function offerTrail(trail){if(!trail||trail.length<2)return;const len=pathLength(trail);if(len<40)return;pendingTrail=trail.map(c=>c.slice());$('traceName').value=`Recorrido ${hhmm(Date.now())}`;$('traceNotes').value=`Recorrido GPS del ${new Date().toLocaleDateString('es-ES')} · ${trail.length} puntos`;$('traceLength').textContent=`Longitud del recorrido: ${fmtDist(len)}. Cancelar lo descarta.`;$('traceDialog').showModal();}
 // La pantalla se mantiene encendida con el GPS activo en el mapa (si se apaga, el móvil deja de dar posiciones) y en «Mis cañas» si así se eligió.
-function syncWakeLock(){setWakeLock((gpsWatch!==null&&screen==='map')||(screen==='rods'&&!!state.settings.keepAwake)||!!offJob);}
+function syncWakeLock(){setWakeLock((gpsWatch!==null&&screen==='map')||(screen==='rods'&&!!state.settings.keepAwake)||!!offJob||!!team);}
 function renderGpsBadge(){const b=$('gpsBadge');if(!gps){b.hidden=true;return;}b.hidden=false;const stale=gpsStale(),kmh=gps.speed!==null?gps.speed*3.6:null,camp=activeCamp(),dc=camp?distance(camp.geometry.coordinates,gps.coords):null,bc=camp?bearing(camp.geometry.coordinates,gps.coords):0;
  b.classList.toggle('stale',stale);b.classList.toggle('moving',gps.moving);$('gpsArrow').style.transform=`rotate(${(gps.course??0).toFixed(0)}deg)`;$('gpsArrow').style.visibility=gps.moving?'':'hidden';
  $('gpsMain').textContent=stale?`Sin señal GPS desde hace ${Math.round((Date.now()-gps.at)/1000)} s`:gps.moving?`${kmh.toFixed(1).replace('.',',')} km/h · rumbo ${Math.round(gps.course)}° ${cardinal(gps.course)}`:`Parado · ±${Math.round(gps.accuracy)} m`;
@@ -908,11 +908,12 @@ const TEAM_KEY='orellana-atlas-team',TEAM_ABC='ABCDEFGHJKLMNPQRSTUVWXYZ23456789'
 let team=null,teamTimer=null,teamTick=null,teamFails=0;
 const teamRand=(n,abc)=>Array.from(crypto.getRandomValues(new Uint8Array(n)),b=>abc[b%32]).join('');
 const teamFmt=c=>c?`${c.slice(0,4)}-${c.slice(4)}`:'';
-const teamCodeOf=v=>{const c=String(v||'').toUpperCase().replace(/[^A-Z0-9]/g,'');return /^[A-HJ-NP-Z2-9]{8}$/.test(c)?c:null;};
 const teamAgo=s=>s<60?`hace ${Math.max(0,Math.round(s))} s`:s<3600?`hace ${Math.round(s/60)} min`:'hace más de 1 h';
 const teamClock=ms=>new Date(ms).toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'});
 function teamSave(){try{if(team)localStorage.setItem(TEAM_KEY,JSON.stringify({room:team.room,me:team.me,name:team.name,until:team.until}));else localStorage.removeItem(TEAM_KEY);}catch{}}
-async function teamApi(method,q='',body=null){const r=await fetch(new URL('api/share'+q,location.href),{method,cache:'no-store',keepalive:method==='DELETE',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let d={};try{d=await r.json();}catch{}if(!r.ok)throw Object.assign(new Error(d.error||`El servidor ha respondido ${r.status}`),{status:r.status});return d;}
+// Todo va por POST con el código en el cuerpo (no queda en los registros de peticiones); solo el ping es GET.
+async function teamApi(body=null){const r=await fetch(new URL(body?'api/share':'api/share?ping=1',location.href),{method:body?'POST':'GET',cache:'no-store',keepalive:body?.op==='leave',headers:body?{'Content-Type':'application/json'}:undefined,body:body?JSON.stringify(body):undefined});let d={};try{d=await r.json();}catch{}if(!r.ok)throw Object.assign(new Error(d.error||`El servidor ha respondido ${r.status}`),{status:r.status});return d;}
+const teamCodeOf=v=>{const s=String(v||'');const m=/equipo=([A-Za-z0-9-]{8,9})/.exec(s);const c=(m?m[1]:s).toUpperCase().replace(/[^A-Z0-9]/g,'');return /^[A-HJ-NP-Z2-9]{8}$/.test(c)?c:null;};
 // Compañeros vistos: posición, edad según el reloj del servidor (no el del móvil) y momento local en que se leyó.
 function teamMates(){if(!team)return [];const now=performance.now();return Object.values(team.members).map(m=>({...m,age:m.age+(now-m.seen)/1000}));}
 // La zona del compañero la da la capa temporal del WCC si sigue en la app (al quitarla, esto deja de mostrarse sin romperse).
@@ -935,26 +936,32 @@ function renderTeamDialog(full=true){const on=!!team;$('teamOff').hidden=on;$('t
  if(full||list.dataset.key!==key){list.dataset.key=key;list.innerHTML=mates.length?mates.map(m=>`<li data-team-row="${esc(m.id)}"><div><b>${esc(m.name)}</b><span data-team-st>${esc(stOf(m))}</span><small data-team-age>${esc(ageOf(m))}</small></div><div class="team-acts"><button type="button" data-team-view="${esc(m.id)}">Ver</button><button type="button" data-team-aim="${esc(m.id)}">Apuntar</button><button type="button" data-team-spot="${esc(m.id)}">Guardar spot aquí</button></div></li>`).join(''):'<li class="tiny">Todavía no se ha unido nadie. Pásale el código o el enlace.</li>';return;}
  for(const m of mates){const row=list.querySelector(`[data-team-row="${CSS.escape(m.id)}"]`);if(!row)continue;row.querySelector('[data-team-st]').textContent=stOf(m);row.querySelector('[data-team-age]').textContent=ageOf(m);}}
 function teamSchedule(ms){clearTimeout(teamTimer);teamTimer=team&&!document.hidden?setTimeout(teamPoll,ms):null;}
-async function teamPoll(){if(!team)return;if(Date.now()>team.until){teamStop(true);toast('Se ha acabado el tiempo: ya no compartes tu posición.');return;}
- try{const d=await teamApi('GET',`?room=${team.room}`);if(!team)return;const now=performance.now(),seen={};for(const m of d.members||[]){if(m.id===team.me)continue;seen[m.id]={id:m.id,name:m.name,coords:[m.lon,m.lat],acc:m.acc,spd:m.spd,crs:m.crs,age:(d.now-m.at)/1000,seen:now};}
-  team.members=seen;teamFails=0;if(team.err&&!team.sendErr)team.err='';
-  if(aim?.target?.team&&seen[aim.target.team]){aim.target.coords=seen[aim.target.team].coords;updateAim();}
-  renderTeam(false);map?.render(false);teamSchedule(Object.values(seen).some(m=>m.spd>=GPS_MOVING&&m.age<30)?4000:10000);}
- catch(e){if(!team)return;teamFails++;team.err=e.status===503?e.message:navigator.onLine?`No se pudo leer la sala: ${e.message}`:'Sin conexión: se reintentará.';renderTeam();teamSchedule(Math.min(30000,4000*2**Math.min(3,teamFails)));}}
-// Envío: al moverse unos metros (como mucho cada 3 s) o cada 15 s aunque esté parado, para que el otro sepa que sigue ahí.
-async function teamSend(force=false){if(!team||!gps||gpsStale()||team.sending)return;const now=Date.now(),moved=!team.sentAt||!team.sentCoords||distance(team.sentCoords,gps.coords)>=Math.max(3,gps.accuracy/2);
- if(!force&&!(now-(team.sentAt||0)>15000||(moved&&now-(team.sentAt||0)>3000)))return;team.sending=true;
- try{await teamApi('POST','',{room:team.room,member:team.me,name:team.name,lat:gps.coords[1],lon:gps.coords[0],acc:Math.min(5000,Math.round(gps.accuracy*10)/10),spd:gps.speed,crs:gps.course,until:team.until});if(!team)return;team.sentAt=Date.now();team.sentCoords=gps.coords.slice();team.sendErr=false;if(teamFails===0)team.err='';}
- catch(e){if(!team)return;team.sendErr=true;team.err=e.status===503?e.message:navigator.onLine?`No se pudo enviar tu posición: ${e.message}`:'Sin conexión: tu compañero no recibe tu posición.';}
- finally{if(team){team.sending=false;renderTeam();}}}
+// Lo que devuelve el servidor: compañeros con su edad según el reloj del servidor, no el del móvil.
+function teamApply(d){if(!team)return;const now=performance.now(),seen={};for(const m of d.members||[]){if(m.id===team.me)continue;seen[m.id]={id:m.id,name:m.name,coords:[m.lon,m.lat],acc:m.acc,spd:m.spd,crs:m.crs,age:(d.now-m.at)/1000,seen:now};}
+ team.members=seen;teamFails=0;team.err='';if(aim?.target?.team&&seen[aim.target.team]){aim.target.coords=seen[aim.target.team].coords;updateAim();}renderTeam(false);map?.render(false);}
+const teamMoving=()=>(!!gps&&!gpsStale()&&gps.moving)||teamMates().some(m=>m.spd>=GPS_MOVING&&m.age<30);
+function teamFail(e,what){if(!team)return;teamFails++;team.err=e.status===503?e.message:navigator.onLine?`${what}: ${e.message}`:'Sin conexión: se reintentará.';renderTeam();}
+const teamPos=()=>({room:team.room,member:team.me,op:'put',name:team.name,lat:gps.coords[1],lon:gps.coords[0],acc:Math.min(5000,Math.round(gps.accuracy*10)/10),spd:gps.speed===null?null:clamp(gps.speed,0,100),crs:gps.course===null?null:((gps.course%360)+360)%360,until:team.until});
+// Cada 5 s si alguien se mueve, 12 s si no: una sola petición manda tu posición (si hay GPS) y lee la sala. Si falla, espera más cada vez.
+async function teamPoll(){if(!team||team.busy)return;if(Date.now()>team.until){teamStop(true);toast('Se ha acabado el tiempo: ya no compartes tu posición.');return;}team.busy=true;
+ try{const live=!!gps&&!gpsStale(),d=await teamApi(live?teamPos():{room:team.room,op:'read'});if(!team)return;if(live){team.sentAt=Date.now();team.sentCoords=gps.coords.slice();}teamApply(d);}
+ catch(e){teamFail(e,'No se pudo leer la sala');}
+ finally{if(team){team.busy=false;teamSchedule(teamFails?Math.min(30000,4000*2**Math.min(3,teamFails)):teamMoving()?5000:12000);}}}
+// Al moverse unos metros se manda sin esperar al siguiente turno (como mucho cada 3 s); la respuesta ya trae la sala.
+async function teamSend(force=false){if(!team||!gps||gpsStale()||team.busy)return;const now=Date.now(),since=now-(team.sentAt||0),moved=!team.sentCoords||distance(team.sentCoords,gps.coords)>=Math.max(3,gps.accuracy/2);
+ if(!force&&!(moved&&since>3000))return;if(teamFails&&now<(team.retryAt||0))return;team.busy=true;
+ try{const d=await teamApi(teamPos());if(!team)return;team.sentAt=Date.now();team.sentCoords=gps.coords.slice();teamApply(d);}
+ catch(e){if(team)team.retryAt=Date.now()+Math.min(30000,4000*2**Math.min(3,teamFails));teamFail(e,'No se pudo enviar tu posición');}
+ finally{if(team){team.busy=false;teamSchedule(teamFails?Math.min(30000,4000*2**Math.min(3,teamFails)):teamMoving()?5000:12000);}}}
 function teamOnFix(){if(team)teamSend();}
-function teamStart(room,name,hours){const until=Date.now()+hours*3600e3;team={room,me:teamRand(12,TEAM_IDS),name:name.slice(0,24)||'Compañero',until,members:{},err:''};teamFails=0;teamSave();try{localStorage.setItem(TEAM_KEY+'-name',team.name);}catch{}
- if(gpsWatch===null)$('locateBtn').click();teamSend(true);teamPoll();clearInterval(teamTick);teamTick=setInterval(()=>{if(team){renderTeam(false);teamSend();}},1000);renderTeam();map?.render(false);}
-function teamStop(silent=false){if(!team)return;const {room,me}=team;team=null;clearTimeout(teamTimer);clearInterval(teamTick);teamTimer=teamTick=null;teamSave();if(aim?.target?.team)stopAim();
- teamApi('DELETE',`?room=${room}&member=${me}`).catch(()=>{});renderTeam();map?.render(false);if(!silent)toast(`Has dejado de compartir tu posición.${gpsWatch!==null?' El GPS sigue encendido: tócalo para apagarlo.':''}`);}
+// Arranque y reanudación tras recargar: GPS, primera petición y el tic de un segundo que refresca los textos y detecta movimiento.
+function teamResume(){teamFails=0;if(gpsWatch===null)$('locateBtn').click();clearTimeout(teamTimer);teamPoll();clearInterval(teamTick);teamTick=setInterval(()=>{if(team){renderTeam(false);teamSend();}},1000);syncWakeLock();renderTeam();map?.render(false);}
+function teamStart(room,name,hours){const until=Date.now()+hours*3600e3;team={room,me:teamRand(12,TEAM_IDS),name:name.slice(0,24)||'Compañero',until,members:{},err:''};teamSave();try{localStorage.setItem(TEAM_KEY+'-name',team.name);}catch{}teamResume();}
+function teamStop(silent=false){if(!team)return;const {room,me}=team;team=null;clearTimeout(teamTimer);clearInterval(teamTick);teamTimer=teamTick=null;teamSave();if(aim?.target?.team)stopAim();syncWakeLock();
+ teamApi({room,member:me,op:'leave'}).catch(()=>{});renderTeam();map?.render(false);if(!silent)toast(`Has dejado de compartir tu posición.${gpsWatch!==null?' El GPS sigue encendido: tócalo para apagarlo.':''}`);}
 function teamMate(id){return teamMates().find(m=>m.id===id);}
 async function openTeam(code=null){closeFab();if(!team){$('teamName').value=$('teamName').value||(()=>{try{return localStorage.getItem(TEAM_KEY+'-name')||'';}catch{return '';}})();if(code)$('teamCodeIn').value=teamFmt(code);
- const chk=$('teamCheck');chk.hidden=false;chk.className='status pending';chk.textContent='Comprobando el servidor…';teamApi('GET','?ping=1').then(()=>{chk.hidden=true;}).catch(e=>{chk.className='status error';chk.textContent=e.status===503?e.message:'No se puede contactar con el servidor. Comprueba la conexión.';});}
+ const chk=$('teamCheck');chk.hidden=false;chk.className='status pending';chk.textContent='Comprobando el servidor…';teamApi().then(()=>{chk.hidden=true;}).catch(e=>{chk.className='status error';chk.textContent=e.status===503?e.message:'No se puede contactar con el servidor. Comprueba la conexión.';});}
  renderTeamDialog();if(!$('teamDialog').open)$('teamDialog').showModal();}
 function wireTeam(){if(!$('teamDialog'))return;$('teamBtn').onclick=()=>openTeam();$('teamBadge').onclick=()=>openTeam();
  const name=()=>{const n=$('teamName').value.trim();if(!n){toast('Escribe tu nombre para que tu compañero sepa quién eres.',true);$('teamName').focus();return null;}return n;};
@@ -968,12 +975,12 @@ function wireTeam(){if(!$('teamDialog'))return;$('teamBtn').onclick=()=>openTeam
   if(b.dataset.teamView){showMap();map.setView(m.coords,Math.max(map.zoom,16));}
   else if(b.dataset.teamAim)startAim(null,{name:m.name,coords:m.coords.slice(),team:m.id});
   else{showMap();openPoint(null,m.coords,'point');$('pointName').value=`Spot de ${m.name} ${new Date().toLocaleTimeString('es-ES',{hour:'2-digit',minute:'2-digit'})}`.slice(0,120);}};
- document.addEventListener('visibilitychange',()=>{if(!team)return;if(document.hidden)clearTimeout(teamTimer);else{teamPoll();teamSend(true);}});
- const fromHash=()=>{const m=/^#equipo=([A-Za-z0-9-]+)$/.exec(location.hash),c=m&&teamCodeOf(m[1]);if(!m)return;history.replaceState(null,'',location.pathname+location.search);if(!c){toast('El enlace de la sala no es válido.',true);return;}if(team?.room===c){openTeam();return;}if(team){toast('Ya compartes en otra sala. Déjala antes de unirte a esta.',true);openTeam();return;}openTeam(c);};
+ document.addEventListener('visibilitychange',()=>{if(!team)return;if(document.hidden)clearTimeout(teamTimer);else{clearTimeout(teamTimer);teamPoll();}});
+ const fromHash=()=>{const m=/^#equipo=([A-Za-z0-9-]+)$/.exec(location.hash),c=m&&teamCodeOf(m[1]);if(!m)return;history.replaceState(history.state,'',location.pathname+location.search);if(!c){toast('El enlace de la sala no es válido.',true);return;}if(team?.room===c){openTeam();return;}if(team){toast('Ya compartes en otra sala. Déjala antes de unirte a esta.',true);openTeam();return;}openTeam(c);};
  window.addEventListener('hashchange',fromHash);
  // Tras recargar (iOS a veces recarga la app al volver a ella) se sigue compartiendo si no ha caducado.
  let saved=null;try{saved=JSON.parse(localStorage.getItem(TEAM_KEY)||'null');}catch{}
- if(saved&&teamCodeOf(saved.room)&&/^[a-z2-7]{12}$/.test(saved.me||'')&&saved.until>Date.now()){team={room:saved.room,me:saved.me,name:clean24(saved.name),until:saved.until,members:{},err:''};if(gpsWatch===null)$('locateBtn').click();teamPoll();clearInterval(teamTick);teamTick=setInterval(()=>{if(team){renderTeam(false);teamSend();}},1000);toast(`Sigues compartiendo tu posición (código ${teamFmt(team.room)}) hasta las ${teamClock(team.until)}.`);}
+ if(saved&&teamCodeOf(saved.room)&&/^[a-z2-7]{12}$/.test(saved.me||'')&&saved.until>Date.now()){team={room:saved.room,me:saved.me,name:clean24(saved.name),until:saved.until,members:{},err:''};teamResume();toast(`Sigues compartiendo tu posición (código ${teamFmt(team.room)}) hasta las ${teamClock(team.until)}.`);}
  else if(saved)teamSave();
  renderTeam();fromHash();}
 const clean24=v=>String(v||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,24)||'Compañero';

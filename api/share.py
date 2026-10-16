@@ -12,9 +12,6 @@ class handler(BaseHTTPRequestHandler):
     def do_POST(self):
         serve_share(self, STORE)
 
-    def do_DELETE(self):
-        serve_share(self, STORE)
-
     def log_message(self, *args):
         # No se registran códigos de sala ni posiciones.
         pass

@@ -41,11 +41,14 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(ttl, S.MAX_TTL)
         self.assertEqual(f["name"], "bJuan/b")
         self.assertEqual(f["at"], int(now * 1000))
-        for bad in (dict(lat=91), dict(lon="x"), dict(acc=-1), dict(spd=float("nan")), dict(until=None)):
+        for bad in (dict(lat=91), dict(lon="x"), dict(until=None)):
             with self.assertRaises(S.ShareError):
                 S.parse_fix(fix(**bad), now)
-        f, ttl = S.parse_fix(fix(spd=None, crs=None, until=0), now)
-        self.assertIsNone(f["spd"])
+        # a GPS glitch in speed, course or accuracy never drops the position: it is clamped or left out
+        f, ttl = S.parse_fix(fix(spd=150, crs=-90, acc=-1, until=0), now)
+        self.assertEqual((f["spd"], f["crs"], f["acc"]), (100, 270, 0))
+        f, _ = S.parse_fix(fix(spd=float("nan"), crs=None, acc="x"), now)
+        self.assertEqual((f["spd"], f["crs"], f["acc"]), (None, None, 0))
         self.assertEqual(ttl, S.MIN_TTL)
 
     def test_room_view_drops_expired_and_stale(self):
@@ -84,17 +87,30 @@ class UpstashTests(unittest.TestCase):
         calls = []
 
         def fake(req, timeout):
-            calls.append((req.full_url, json.loads(req.data), req.headers))
-            return FakeResponse({"result": [ME, "{}"]} if "pipeline" not in req.full_url else [{"result": 1}, {"result": 1}])
+            body = json.loads(req.data)
+            calls.append((req.full_url, body, req.headers))
+            if "pipeline" not in req.full_url:
+                return FakeResponse({"result": [ME, "{}"]})
+            return FakeResponse([{"result": "OK"}, {"result": "1"}] if body[0][0] == "SET" else [{"result": 1}, {"result": 1}])
         store = S.UpstashStore("https://example.upstash.io/", "secret")
         with patch("share_relay.urllib.request.urlopen", fake):
+            self.assertTrue(store.ping())
             store.put(ROOM, ME, "{}", 120)
             self.assertEqual(store.get(ROOM), {ME: "{}"})
             store.delete(ROOM, ME)
-        self.assertEqual(calls[0][0], "https://example.upstash.io/pipeline")
-        self.assertEqual(calls[0][1], [["HSET", S.KEY + ROOM, ME, "{}"], ["EXPIRE", S.KEY + ROOM, "120"]])
-        self.assertEqual(calls[0][2]["Authorization"], "Bearer secret")
-        self.assertEqual(calls[2][1], ["HDEL", S.KEY + ROOM, ME])
+        self.assertEqual(calls[0][1][0][:2], ["SET", S.KEY + "ping"])
+        self.assertEqual(calls[1][0], "https://example.upstash.io/pipeline")
+        self.assertEqual(calls[1][1], [["HSET", S.KEY + ROOM, ME, "{}"], ["EXPIRE", S.KEY + ROOM, "120"]])
+        self.assertEqual(calls[1][2]["Authorization"], "Bearer secret")
+        self.assertEqual(calls[3][1], ["HDEL", S.KEY + ROOM, ME])
+
+    def test_ping_detects_a_store_that_cannot_write(self):
+        store = S.UpstashStore("https://example.upstash.io", "read-only")
+        with patch("share_relay.urllib.request.urlopen", return_value=FakeResponse([{"error": "NOPERM"}, {"result": None}])):
+            with self.assertRaises(S.ShareError):
+                store.ping()
+        with patch("share_relay.urllib.request.urlopen", return_value=FakeResponse([{"result": "OK"}, {"result": None}])):
+            self.assertFalse(store.ping())
 
     def test_store_errors_are_reported_not_hidden(self):
         store = S.UpstashStore("https://example.upstash.io", "t")
@@ -139,9 +155,9 @@ class ServiceTests(unittest.TestCase):
         cls.httpd.shutdown()
         cls.httpd.server_close()
 
-    def call(self, method="GET", query="", body=None, headers=None):
+    def call(self, body=None, query="", headers=None):
         data = json.dumps(body).encode() if body is not None else None
-        req = urllib.request.Request(self.base + query, data=data, method=method,
+        req = urllib.request.Request(self.base + query, data=data, method="POST" if body is not None else "GET",
                                      headers={"Content-Type": "application/json", **(headers or {})})
         try:
             with urllib.request.urlopen(req, timeout=5) as res:
@@ -151,22 +167,31 @@ class ServiceTests(unittest.TestCase):
 
     def test_share_roundtrip(self):
         with patch.object(server, "SHARE_STORE", S.MemoryStore()):
-            self.assertEqual(self.call(query="?ping=1"), (200, {"ok": True, "store": "memory"}))
-            self.assertEqual(self.call("POST", body=fix())[0], 200)
-            self.assertEqual(self.call("POST", body=fix(member=YOU, name="Pepe", lat=39.0071))[0], 200)
-            status, data = self.call(query=f"?room={ROOM}")
+            self.assertEqual(self.call(query="?ping=1"), (200, {"ok": True, "store": "memory", "write": True}))
+            status, data = self.call(dict(fix(), op="put"))
+            self.assertEqual(status, 200)
+            self.assertEqual(data["members"], [], "your own position is not echoed back")
+            status, data = self.call(dict(fix(member=YOU, name="Pepe", lat=39.0071), op="put"))
+            self.assertEqual([m["name"] for m in data["members"]], ["Juan"], "a put answers with the rest of the room")
+            status, data = self.call({"room": ROOM, "op": "read"})
             self.assertEqual(status, 200)
             self.assertEqual(sorted(m["name"] for m in data["members"]), ["Juan", "Pepe"])
-            self.assertEqual(self.call("DELETE", query=f"?room={ROOM}&member={YOU}")[0], 200)
-            self.assertEqual([m["id"] for m in self.call(query=f"?room={ROOM}")[1]["members"]], [ME])
+            self.assertEqual(self.call({"room": ROOM, "member": YOU, "op": "leave"})[0], 200)
+            self.assertEqual([m["id"] for m in self.call({"room": ROOM, "op": "read"})[1]["members"]], [ME])
 
     def test_rejections(self):
         with patch.object(server, "SHARE_STORE", S.MemoryStore()):
-            self.assertEqual(self.call("POST", body=fix(lat=200))[0], 400)
-            self.assertEqual(self.call("POST", body=fix(room="0000"))[0], 400)
-            self.assertEqual(self.call("POST", body={"x": "y" * 2000})[0], 413)
-            self.assertEqual(self.call(query=f"?room={ROOM}", headers={"Origin": "https://evil.example"})[0], 403)
-            self.assertEqual(self.call(query=f"?room={ROOM}", headers={"Origin": self.base.split("/api")[0]})[0], 200)
+            self.assertEqual(self.call(dict(fix(lat=200), op="put"))[0], 400)
+            self.assertEqual(self.call(dict(fix(room="0000"), op="put"))[0], 400)
+            self.assertEqual(self.call({"room": ROOM, "op": "steal"})[0], 400)
+            self.assertEqual(self.call({"x": "y" * 2000})[0], 413)
+            self.assertEqual(self.call(query=f"?room={ROOM}")[0], 405, "room codes never travel in a URL")
+            same = self.base.split("/api")[0]
+            self.assertEqual(self.call({"room": ROOM, "op": "read"}, headers={"Origin": "https://evil.example"})[0], 403)
+            self.assertEqual(self.call({"room": ROOM, "op": "read"}, headers={"Origin": "https://evil.example", "Sec-Fetch-Site": "cross-site"})[0], 403)
+            self.assertEqual(self.call({"room": ROOM, "op": "read"}, headers={"Origin": same})[0], 200)
+            # the browser's own declaration wins even when the platform rewrites the Host header
+            self.assertEqual(self.call({"room": ROOM, "op": "read"}, headers={"Origin": "https://orellana-atlas.vercel.app", "Sec-Fetch-Site": "same-origin"})[0], 200)
 
     def test_without_store_it_says_so(self):
         with patch.object(server, "SHARE_STORE", None), patch.dict("os.environ", {"REDIS_URL": "rediss://secret"}):
@@ -179,7 +204,7 @@ class ServiceTests(unittest.TestCase):
     def test_vercel_adapter_does_not_log(self):
         sys.path.insert(0, str(ROOT / "api"))
         import share as adapter
-        self.assertTrue(hasattr(adapter.handler, "do_POST") and hasattr(adapter.handler, "do_DELETE"))
+        self.assertTrue(hasattr(adapter.handler, "do_POST") and not hasattr(adapter.handler, "do_DELETE"))
         self.assertIsNone(adapter.handler.log_message(None, "%s", "/api/share?room=ABCDEFGH"))
 
 

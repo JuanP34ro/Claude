@@ -80,9 +80,6 @@ class Handler(SimpleHTTPRequestHandler):
             return self.send_error(405, "Método no permitido")
         serve_share(self, SHARE_STORE)
 
-    def do_DELETE(self):
-        self.do_POST()
-
     def do_HEAD(self):
         path = urllib.parse.urlsplit(self.path).path
         if path not in STATIC:
