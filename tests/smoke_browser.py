@@ -4,12 +4,21 @@ Usage: python tests/smoke_browser.py
 """
 from pathlib import Path
 import shutil
+import struct
 import sys
 import threading
+import zlib
 from http.server import ThreadingHTTPServer
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 from server import Handler
 from playwright.sync_api import sync_playwright
+
+def tiny_png(w=640, h=480, rgb=(120, 90, 40)):
+    """A flat PNG, used as a catch photo (no real photo is ever stored in the repo)."""
+    raw = b''.join(b'\x00' + bytes(rgb) * w for _ in range(h))
+    def chunk(tag, data):
+        return struct.pack('>I', len(data)) + tag + data + struct.pack('>I', zlib.crc32(tag + data) & 0xffffffff)
+    return b'\x89PNG\r\n\x1a\n' + chunk(b'IHDR', struct.pack('>IIBBBBB', w, h, 8, 2, 0, 0, 0)) + chunk(b'IDAT', zlib.compress(raw)) + chunk(b'IEND', b'')
 
 def wcc_inside(sec, n):
     """Vertex average of a closed WCC 2026 zone, used as a simulated GPS fix inside it."""
@@ -157,6 +166,14 @@ def main():
                 events = page.evaluate('window.OrellanaAtlas.getState().events')
                 assert [e['kind'] for e in events][-1:] == ['catch'] and events[-1]['kg'] == 12.5, events
                 assert page.locator('#timelineList li').count() >= 1 and page.locator('#exportTimeline').is_visible(), 'Timeline not rendered'
+                # a photo on the catch: reduced, stored in IndexedDB, shown in the Diario card
+                page.locator('[data-catch-edit]').first.click()
+                page.locator('#catchDialog').wait_for(state='visible')
+                page.locator('#catchPhotoIn').set_input_files({'name': 'carpa.png', 'mimeType': 'image/png', 'buffer': tiny_png()})
+                page.wait_for_function("!document.getElementById('catchPhotoPrev').hidden", timeout=10000)
+                page.locator('#catchSave').click()
+                page.wait_for_function('window.OrellanaAtlas.photoCount().then(n => n === 1)', timeout=10000)
+                page.wait_for_selector('#catchesList img.catch-photo:not([hidden])', timeout=10000)
                 page.locator('#openNotebook').click()
                 page.locator('#notebook').wait_for(state='visible')
                 assert page.locator('#notebook .nb-key').count() >= 5, 'Learning notebook has no keys'
@@ -186,7 +203,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, session timeline, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search and zone from GPS, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()
