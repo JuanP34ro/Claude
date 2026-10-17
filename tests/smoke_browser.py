@@ -155,6 +155,27 @@ def main():
                 if page.locator('#traceDialog').is_visible():
                     page.keyboard.press('Escape')
                 assert page.evaluate('window.OrellanaAtlas.getGps()') is None, 'GPS did not stop after the WCC check'
+                # Dónde poner las cañas: a synthetic weather history (wind veering W→NE 4 h ago, a day 9 °C colder than yesterday, overcast, rain, falling pressure)
+                page.evaluate('''() => { const H = 36e5, now = Date.now(), start = Math.floor((now - 72 * H) / H) * H, d0 = new Date(now).setHours(0, 0, 0, 0);
+                    const w = {fetchedAt: now, place: [-5.41, 39.01], t: [], p: [], temp: [], wind: [], dir: [], gust: [], cloud: [], rain: []};
+                    for (let i = 0; i < 7 * 24; i++) { const x = start + i * H, day = Math.floor((x - d0) / 864e5), hr = new Date(x).getHours(), ne = x >= now - 4 * H;
+                        w.t.push(x); w.p.push(1015 - 0.5 * i); w.temp.push((day === -1 ? 30 : day === 0 ? 21 : 24) - 6 * Math.min(1, Math.abs(hr - 15) / 9));
+                        w.wind.push(ne ? 20 : 15); w.dir.push(ne ? 45 : 270); w.gust.push(ne ? 30 : 22); w.cloud.push(90); w.rain.push(x > now - 2 * H && x <= now ? 2 : 0); }
+                    localStorage.setItem('orellana-atlas-weather', JSON.stringify(w)); }''')
+                page.reload(wait_until='domcontentloaded')
+                page.wait_for_function('window.OrellanaAtlas')
+                page.locator('[data-go="weather"]').click()
+                heads = page.evaluate("[...document.querySelectorAll('#wxRead .wx-line > b')].map(b => b.textContent)")
+                assert heads[0] == 'Sin temperatura del agua' and 'El viento ha rolado de O a NE' in heads and any(h.startswith('Viento NE') for h in heads), heads
+                assert 'La máxima cae 9 °C respecto a ayer' in heads and 'Cielo cubierto' in heads and any(h.startswith('Lluvia: 4 mm') for h in heads) and any(h.startswith('Presión bajando') for h in heads), heads
+                assert page.evaluate("document.querySelectorAll('#wxRead .tag-sci, #wxRead .tag-con').length") >= 6, 'evidence tags missing'
+                page.locator('#waterIn').fill('19,5')
+                page.locator('#waterForm button[type="submit"]').click()
+                assert page.evaluate('window.OrellanaAtlas.getState().water')[0]['c'] == 19.5
+                assert page.locator('#wxRead .wx-line > b').first.inner_text().startswith('Agua 19,5 °C'), 'water line not shown'
+                page.locator('#waterIn').fill('x')
+                page.locator('#waterForm button[type="submit"]').click()
+                assert len(page.evaluate('window.OrellanaAtlas.getState().water')) == 1, 'invalid water temperature accepted'
                 page.locator('[data-go="diary"]').click()
                 page.locator('#addCatch').click()
                 page.locator('#catchDialog').wait_for(state='visible')
@@ -162,7 +183,7 @@ def main():
                     page.locator(f'#catchKeypad [data-key="{key}"]').click()
                 page.locator('#catchSave').click()
                 catch = page.evaluate('window.OrellanaAtlas.getState().catches[0]')
-                assert catch['weightKg'] == 12.5 and catch['outcome'] == 'catch', catch
+                assert catch['weightKg'] == 12.5 and catch['outcome'] == 'catch' and catch['cond'].get('water') == 19.5, catch
                 events = page.evaluate('window.OrellanaAtlas.getState().events')
                 assert [e['kind'] for e in events][-1:] == ['catch'] and events[-1]['kg'] == 12.5, events
                 assert page.locator('#timelineList li').count() >= 1 and page.locator('#exportTimeline').is_visible(), 'Timeline not rendered'
@@ -224,7 +245,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search, zone from GPS and programme countdown, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search, zone from GPS and programme countdown, weather reading and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()
