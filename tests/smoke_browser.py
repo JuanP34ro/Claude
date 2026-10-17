@@ -164,6 +164,7 @@ def main():
                     localStorage.setItem('orellana-atlas-weather', JSON.stringify(w)); }''')
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas')
+                assert not page.evaluate("document.getElementById('wxDot').hidden"), 'storm did not light the weather dot before Tiempo was opened'
                 page.locator('[data-go="weather"]').click()
                 heads = page.evaluate("[...document.querySelectorAll('#wxRead .wx-line > b')].map(b => b.textContent)")
                 assert heads[0] == 'Sin temperatura del agua' and 'El viento ha rolado de O a NE' in heads and any(h.startswith('Viento NE') for h in heads), heads
@@ -172,8 +173,9 @@ def main():
                 alerts = page.locator('#wxAlerts').inner_text()
                 assert 'Tormenta prevista' in alerts and 'Rachas de hasta 45 km/h' in alerts, alerts
                 assert page.locator('#wxDays tbody tr').count() >= 4 and 'tormenta' in page.locator('#wxDays').inner_text(), 'daily outlook missing'
-                assert not page.evaluate("document.getElementById('wxDot').hidden"), 'storm did not light the weather badge'
-                assert 'primera luz' in page.locator('#wxAstro').inner_text(), 'civil twilight missing'
+                assert page.evaluate("document.getElementById('wxDot').hidden"), 'the weather dot should clear once the alerts have been seen'
+                astro = page.locator('#wxAstro').inner_text()
+                assert 'primera luz' in astro and ('sale' in astro or 'se pone' in astro), astro
                 page.locator('#waterIn').fill('19,5')
                 page.locator('#waterForm button[type="submit"]').click()
                 assert page.evaluate('window.OrellanaAtlas.getState().water')[0]['c'] == 19.5

@@ -377,6 +377,7 @@ details.group .sub>.section-title{font-size:11.5px}
 .wx-table td{padding:8px 3px;border-bottom:1px solid #1d1913;vertical-align:top}.wx-table td small{color:var(--muted);font-size:11.5px}.wx-table td small.warn{color:var(--warm)}
 .wx-alert{margin:10px 0 0;color:var(--text)}
 .wx-astro{display:grid;gap:8px;font-size:14px;line-height:1.55}
+.astro-row{display:flex;flex-wrap:wrap;gap:2px 14px;align-items:baseline}.astro-row span{white-space:nowrap;color:var(--muted)}.astro-row span b{font-weight:600;color:var(--text)}
 .wx-astro strong{color:var(--gold);font-family:var(--engraved);letter-spacing:.08em;margin-right:4px}
 .wx-read{display:grid;gap:10px;margin:0 0 14px}
 .wx-line{border-left:2px solid var(--gold);padding:1px 0 1px 10px}
