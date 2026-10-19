@@ -904,7 +904,9 @@ function wccVectors(){if(!WCC||!wcc.on||!map||map.zoom<WZ.areas)return '';const 
  const night=!!state.settings.nightMode;if(night)s+='<defs><pattern id="wccHatch" width="8" height="8" patternUnits="userSpaceOnUse" patternTransform="rotate(45)"><line x1="0" y1="0" x2="0" y2="8" stroke="#d9483b" stroke-width="2"/></pattern></defs>';
  for(const a of g.areas){if(!seen(a.box))continue;const no=a.kind==='no';s+=`<path d="${polyPath(a.pts)}Z" fill="${no?(night?'url(#wccHatch)':'#d9483b'):'#3fae7f'}" fill-opacity="${no?(night?.7:.24):(night?.08:.18)}" stroke="${no?'#ff7a6b':'#7fd6ae'}" stroke-width="1.5"${no?' stroke-dasharray="6 4"':''}/>`;}
  for(const[p,me]of [[sel,false],[mine,true]]){if(!p||(!me&&p.i===mine?.i))continue;const c=me?'#e2c587':'#f3ead6';
-  if(p.zone)s+=`<path d="${polyPath(p.zone)}Z" fill="${c}" fill-opacity="${night?0:me?.24:.15}" stroke="${c}" stroke-width="${night?(me?7:4):3}" stroke-linejoin="round"${night&&!me?' stroke-dasharray="2 6"':''}/>`;
+  // Tu puesto: solo el contorno, con un halo oscuro para que se vea sobre la foto; un relleno taparía justo el agua que quieres mirar.
+  if(p.zone&&me)s+=`<path d="${polyPath(p.zone)}Z" fill="none" stroke="#1f1a13" stroke-width="${night?9:7}" stroke-opacity=".55" stroke-linejoin="round"/><path d="${polyPath(p.zone)}Z" fill="none" stroke="${c}" stroke-width="${night?7:3.5}" stroke-linejoin="round"/>`;
+  else if(p.zone)s+=`<path d="${polyPath(p.zone)}Z" fill="${c}" fill-opacity="${night?0:.12}" stroke="${c}" stroke-width="${night?4:3}" stroke-linejoin="round"${night?' stroke-dasharray="2 6"':''}/>`;
   else if(p.open?.length>1)s+=`<path d="${polyPath(p.open)}" fill="none" stroke="${c}" stroke-width="5" stroke-linecap="round"/>`;}
  if(z>=WZ.lines){const ch=lines(g.chan),bd=lines(g.borders);
   if(ch)s+=`<path d="${ch}" fill="none" stroke="#1f1a13" stroke-width="4" stroke-opacity=".45"/><path d="${ch}" fill="none" stroke="#a5d66f" stroke-width="2" stroke-dasharray="7 6"/>`;
@@ -979,7 +981,7 @@ function wireWcc(){if(!WCC){for(const id of ['wccSection','wccProg','wccProgDial
  $('wccRouteOff').onclick=()=>{wccRoute=null;syncWccUi();map.render(false);};
  $('wccClose').onclick=()=>closeWcc();$('wccFitBtn').onclick=()=>wccFocus();
  $('wccAim').onclick=()=>{const s=wccSel,c=s?.peg?.at||s?.item?.at;if(c)startAim(null,{name:s.peg?.name||s.item.name,coords:c});};
- $('wccMineBtn').onclick=()=>{const p=wccSel?.peg;if(!p)return;wcc.mine=wcc.mine===p.key?null:p.key;wccSave();syncWccUi();renderWcc();renderWccGps();map.render(false);renderWeather();if(wcc.mine)toast(p.zone?`${p.name} es tu puesto: su zona se marca en dorado y, con el GPS, sabrás si estás dentro.`:`${p.name} es tu puesto. Su zona no está cerrada en el mapa del concurso: el GPS no podrá decirte si estás dentro.`);};
+ $('wccMineBtn').onclick=()=>{const p=wccSel?.peg;if(!p)return;wcc.mine=wcc.mine===p.key?null:p.key;wccSave();syncWccUi();renderWcc();renderWccGps();map.render(false);renderWeather();if(wcc.mine)toast(p.zone?`${p.name} es tu puesto: su contorno se marca en dorado, sin relleno, y con el GPS sabrás si estás dentro.`:`${p.name} es tu puesto. Su zona no está cerrada en el mapa del concurso: el GPS no podrá decirte si estás dentro.`);};
  $('wccMore').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset;
   if(d.wccPeg)openWcc(Number(d.wccPeg));
   else if(d.wccRoute){const k=Number(d.wccRoute);wccRoute=wccRoute===k?null:k;syncWccUi();const at=wccSel?.peg?.at;renderWcc();if(wccRoute!==null)wccFocus([...WCC.routes[k].pts,...(at?[at]:[])]);map.render(false);}
