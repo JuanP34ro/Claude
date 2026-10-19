@@ -35,6 +35,7 @@ Cuaderno de campo de carpfishing en Orellana (antes «Orellana Atlas»). Los ide
   - De noche los avisadores conservan su color atenuado, como en el puesto. El resto del rod pod y de la app sigue en rojo.
   - Con cuatro cañas o más, las etiquetas del rod pod no llevan número (lo identifica el color) y los textos se estrechan si no caben.
 - **GPS en la barca**:
+  - Si el permiso de ubicación está bloqueado, el aviso explica cómo volver a darlo según el móvil (Android: candado de Chrome › Permisos › Ubicación, y Ajustes › Aplicaciones › Chrome; iPhone: Ajustes › Safari › Ubicación). La ayuda tiene una sección «Permiso de ubicación».
   - Al activar el GPS, el mapa te sigue. Si lo arrastras, deja de seguirte (el GPS sigue activo); otro toque en el botón vuelve a centrarte. Al pulsarlo mientras te sigue, se apaga.
   - Mientras te mueves, tu marca es una flecha con la dirección y una línea de a dónde llegarás en 20 s; parado, el punto de siempre. Queda un rastro punteado del recorrido.
   - Una chapa arriba muestra velocidad (km/h), rumbo, precisión y a qué distancia y rumbo queda el puesto. Si el móvil deja de dar posiciones más de 12 s, lo avisa y la marca se dibuja hueca.
