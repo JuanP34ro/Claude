@@ -1062,7 +1062,7 @@ function wirePhotos(){if(!$('catchPhotoBtn'))return;photoKeys().then(k=>{for(con
 // Formato documentado por la comunidad (opensounder): cabecera de archivo de 8 bytes; cada ping lleva 144 bytes de cabecera y después el eco.
 // Solo se leen las cabeceras: profundidad (pies), posición (Mercator esférico sobre el radio polar), temperatura y tiempo. Nada se inventa ni
 // se interpola: se guardan los sondeos medidos, aligerados a uno cada pocos metros, en IndexedDB (orellana-atlas-sonar), fuera de orellana-atlas-v1.
-const SONAR_DB='orellana-atlas-sonar',SONAR_UI='orellana-atlas-sonar-ui',SONAR_R=6356752.3142,SONAR_DEMO='https://raw.githubusercontent.com/opensounder/sample-data-lowrance/master/Elite_4_Chirp/small.sl2';
+const SONAR_DB='orellana-atlas-sonar',SONAR_UI='orellana-atlas-sonar-ui',SONAR_R=6356752.3142,SONAR_DEMO='https://raw.githubusercontent.com/opensounder/sample-data-lowrance/master/Elite_4_Chirp/bigger.sl2';
 let sonarDb=null,sonarLogs=[],sonarUi={on:true,sel:null},sonarBusy=false;
 function sonarOpen(){if(sonarDb)return Promise.resolve(sonarDb);return new Promise((res,rej)=>{if(!('indexedDB' in window))return rej(Error('Este navegador no guarda sondeos.'));const r=indexedDB.open(SONAR_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('logs',{keyPath:'id'});r.onsuccess=()=>{sonarDb=r.result;res(sonarDb);};r.onerror=()=>rej(r.error||Error('No se pudo abrir el almacén de sondeos.'));});}
 function sonarTx(mode,run){return sonarOpen().then(db=>new Promise((res,rej)=>{const t=db.transaction('logs',mode),q=run(t.objectStore('logs'));t.oncomplete=()=>res(q?.result);t.onerror=()=>rej(t.error||Error('Error del almacén de sondeos.'));}));}
@@ -1088,7 +1088,12 @@ async function sonarImport(file,name){if(sonarBusy)return;sonarBusy=true;const s
   const bbox=r.pts.reduce((b,q)=>[Math.min(b[0],q[0]),Math.min(b[1],q[1]),Math.max(b[2],q[0]),Math.max(b[3],q[1])],[180,90,-180,-90]),log={id:uid(),name:String(name||'registro').slice(0,80),at:new Date().toISOString(),bbox,...r};
   await sonarPut(log);await sonarLoad();sonarUi.sel=log.id;sonarUi.on=true;sonarSave();renderSonar();stEl.textContent='';toast(`${log.n} sondeos guardados · fondo de ${fmtZ(log.zmin)} a ${fmtZ(log.zmax)}${log.tmin!==null?` · agua ${fmtC(log.tmin)}`:''}.`);sonarFocus(log);}
  catch(e){stEl.textContent='';toast(`No se pudo leer el registro: ${e.message||e}`,true);}finally{sonarBusy=false;}}
-async function sonarDemo(){if(sonarBusy)return;const stEl=$('sonarStatus');stEl.textContent='Descargando la muestra (13 MB)…';try{const r=await fetchTimed(SONAR_DEMO,90000);if(!r.ok)throw Error(`HTTP ${r.status}`);await sonarImport(await r.blob(),'Muestra · Elite-4 CHIRP · Dalsland (Suecia)');}catch(e){stEl.textContent='';toast(`No se pudo descargar la muestra: ${e.message||e}`,true);}}
+// La muestra pesa 35 MB: se descarga por trozos con el avance en pantalla y se corta si el flujo se para medio minuto.
+async function sonarDemo(){if(sonarBusy)return;const stEl=$('sonarStatus'),btn=$('sonarDemo'),ctrl=new AbortController();let timer=null;const arm=()=>{clearTimeout(timer);timer=setTimeout(()=>ctrl.abort(),30000);};btn.disabled=true;stEl.textContent='Descargando la muestra (35 MB)…';
+ try{arm();const r=await fetch(SONAR_DEMO,{signal:ctrl.signal,credentials:'omit',cache:'no-cache'});if(!r.ok)throw Error(`HTTP ${r.status}`);const total=Math.round((+r.headers.get("content-length")||0)/1e6)||35,parts=[];let got=0;
+  if(r.body){const rd=r.body.getReader();for(;;){const {done,value}=await rd.read();if(done)break;arm();parts.push(value);got+=value.length;stEl.textContent=`Descargando la muestra… ${Math.min(total,Math.round(got/1e6))} de ${total} MB`;}}else parts.push(await r.arrayBuffer());
+  clearTimeout(timer);await sonarImport(new Blob(parts),'Muestra · Elite-4 CHIRP · Dalsland (Suecia)');}
+ catch(e){stEl.textContent='';toast(`No se pudo descargar la muestra: ${e.name==='AbortError'?'la descarga se ha quedado parada':e.message||e}`,true);}finally{clearTimeout(timer);btn.disabled=false;}}
 // Color por profundidad: celeste en lo somero, azul marino a partir de 20 m. De noche pasa a rojo como todo lo demás.
 function depthColor(z){const t=clamp(z/20,0,1);return `hsl(${(185+50*t).toFixed(0)} 85% ${(74-56*t).toFixed(0)}%)`;}
 function sonarVectors(){if(!sonarUi.on||!map||map.zoom<12||!sonarLogs.length)return '';const tl=map.unproject([-20,-20]),br=map.unproject([map.width+20,map.height+20]),z=map.zoom,r=z>=17?5:z>=15?3.5:2.5,labels=z>=17;let s='';
