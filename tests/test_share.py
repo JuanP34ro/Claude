@@ -50,6 +50,11 @@ class ValidationTests(unittest.TestCase):
         f, _ = S.parse_fix(fix(spd=float("nan"), crs=None, acc="x"), now)
         self.assertEqual((f["spd"], f["crs"], f["acc"]), (None, None, 0))
         self.assertEqual(ttl, S.MIN_TTL)
+        # age of the GPS fix: optional, clamped, never breaks the position
+        self.assertEqual(S.parse_fix(fix(), now)[0]["fix"], 0)
+        self.assertEqual(S.parse_fix(fix(fix=125.7), now)[0]["fix"], 126)
+        self.assertEqual(S.parse_fix(fix(fix=1e9), now)[0]["fix"], 86400)
+        self.assertEqual(S.parse_fix(fix(fix="x"), now)[0]["fix"], 0)
 
     def test_room_view_drops_expired_and_stale(self):
         store, now = S.MemoryStore(), time.time()
@@ -60,6 +65,18 @@ class ValidationTests(unittest.TestCase):
         view = S.room_view(store, ROOM, now)
         self.assertEqual([m["id"] for m in view], [ME])
         self.assertNotIn(YOU, store.get(ROOM), "stale positions are deleted, not kept")
+
+    def test_leave_leaves_a_mark_without_shortening_the_room(self):
+        store, now = S.MemoryStore(), time.time()
+        good, _ = S.parse_fix(fix(), now)
+        store.put(ROOM, ME, json.dumps(good), 3600)
+        exp_before = store.rooms[ROOM][0]
+        store.put(ROOM, YOU, json.dumps({"left": 1, "at": int(now * 1000), "until": int((now + S.LEFT_TTL) * 1000)}), None)
+        self.assertEqual(store.rooms[ROOM][0], exp_before, "a leave mark must not shorten the room's expiry")
+        view = S.room_view(store, ROOM, now)
+        self.assertEqual(sorted((m["id"], m.get("left")) for m in view), sorted([(ME, None), (YOU, True)]))
+        self.assertNotIn("lat", next(m for m in view if m["id"] == YOU), "a leave mark carries no position")
+        self.assertEqual([m["id"] for m in S.room_view(store, ROOM, now + S.LEFT_TTL + 1)], [ME], "the mark expires on its own")
 
     def test_memory_room_expires(self):
         store = S.MemoryStore()
@@ -98,6 +115,8 @@ class UpstashTests(unittest.TestCase):
             store.put(ROOM, ME, "{}", 120)
             self.assertEqual(store.get(ROOM), {ME: "{}"})
             store.delete(ROOM, ME)
+            store.put(ROOM, ME, "{}", None)
+        self.assertEqual(calls[-1][1], [["HSET", S.KEY + ROOM, ME, "{}"]], "no EXPIRE when the ttl is left alone")
         self.assertEqual(calls[0][1][0][:2], ["SET", S.KEY + "ping"])
         self.assertEqual(calls[1][0], "https://example.upstash.io/pipeline")
         self.assertEqual(calls[1][1], [["HSET", S.KEY + ROOM, ME, "{}"], ["EXPIRE", S.KEY + ROOM, "120"]])
@@ -177,7 +196,8 @@ class ServiceTests(unittest.TestCase):
             self.assertEqual(status, 200)
             self.assertEqual(sorted(m["name"] for m in data["members"]), ["Juan", "Pepe"])
             self.assertEqual(self.call({"room": ROOM, "member": YOU, "op": "leave"})[0], 200)
-            self.assertEqual([m["id"] for m in self.call({"room": ROOM, "op": "read"})[1]["members"]], [ME])
+            members = self.call({"room": ROOM, "op": "read"})[1]["members"]
+            self.assertEqual(sorted((m["id"], m.get("left")) for m in members), sorted([(ME, None), (YOU, True)]), "a leave shows as a mark, not as silence")
 
     def test_rejections(self):
         with patch.object(server, "SHARE_STORE", S.MemoryStore()):

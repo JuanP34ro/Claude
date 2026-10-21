@@ -56,6 +56,7 @@ def team_check(browser, base):
     boat.locator('#teamCreate').click()
     code = boat.locator('#teamCodeOut').inner_text()
     assert len(code) == 9 and code[4] == '-', code
+    assert boat.evaluate('window.OrellanaAtlas.team().rolling') is True, 'sharing should be open-ended by default'
     boat.locator('#teamDialog .close-dialog').first.click()
     bank.locator('#fabBtn').click()
     bank.locator('#teamBtn').click()

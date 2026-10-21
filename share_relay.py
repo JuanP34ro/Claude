@@ -1,6 +1,7 @@
 """Relé de posiciones para «Compartir con mi compañero». Solo biblioteca estándar.
 
-Cada sala (código de 8 letras) guarda únicamente la última posición de cada móvil, con caducidad: sin historial y sin
+Cada sala (código de 8 letras) guarda únicamente la última posición de cada móvil, con caducidad, y una marca breve de quien se
+va: sin historial y sin
 registrar coordenadas en los logs. Todo va por POST con el código en el cuerpo, para que tampoco quede en los registros
 de peticiones del alojamiento; solo el «ping» es GET. Almacén: Upstash Redis por su API REST si el entorno trae sus credenciales
 (UPSTASH_REDIS_REST_URL/TOKEN o KV_REST_API_URL/TOKEN, que añade la integración de Vercel); si no, en memoria, solo
@@ -24,7 +25,8 @@ MEMBER = re.compile(r"^[a-z2-7]{12}$")
 KEY = "cfn:share:"
 MAX_BODY = 1024
 MIN_TTL, MAX_TTL = 60, 24 * 3600
-STALE = 15 * 60  # sin noticias de un móvil en 15 min: no se devuelve
+STALE = 60 * 60  # sin noticias de un móvil en 1 h: no se devuelve (la antigüedad de la posición ya la enseña el cliente)
+LEFT_TTL = 10 * 60  # quien se va deja una marca 10 min, para distinguirlo de quien se quedó sin cobertura
 MAX_MEMBERS = 6
 NOT_CONFIGURED = "El servidor todavía no tiene activado el almacén para compartir posiciones (Upstash en Vercel)."
 
@@ -85,6 +87,7 @@ def parse_fix(body: dict, now: float) -> tuple[dict, int]:
         "acc": _clamped(body.get("acc"), 0, 5000, 1) or 0,
         "spd": _clamped(body.get("spd"), 0, 100, 2),
         "crs": None if _clamped(body.get("crs"), -1e9, 1e9, 1) is None else round(float(body.get("crs")) % 360, 1),
+        "fix": int(_clamped(body.get("fix"), 0, 86400, 0) or 0),  # segundos desde la posición GPS: con la pantalla apagada se reenvía la última
         "at": int(now * 1000),
         "until": int((now + ttl) * 1000),
     }
@@ -102,11 +105,16 @@ class MemoryStore:
     def ping(self) -> bool:
         return True
 
-    def put(self, room: str, member: str, value: str, ttl: int) -> None:
+    def put(self, room: str, member: str, value: str, ttl=None) -> None:
+        """ttl None: no toca la caducidad de la sala (la marca de quien se va no debe acortarla)."""
         with self.lock:
-            _, members = self.rooms.get(room, (0, {}))
+            exp, members = self.rooms.get(room, (0, {}))
             members[member] = value
-            self.rooms[room] = (time.time() + ttl, members)
+            if ttl is not None:
+                exp = time.time() + ttl
+            elif exp <= time.time():
+                exp = time.time() + LEFT_TTL
+            self.rooms[room] = (exp, members)
 
     def get(self, room: str) -> dict[str, str]:
         with self.lock:
@@ -148,8 +156,11 @@ class UpstashStore:
         res = self._call("/pipeline", [["SET", KEY + "ping", "1", "EX", "60"], ["GET", KEY + "ping"]])
         return isinstance(res, list) and len(res) == 2 and res[1].get("result") == "1"
 
-    def put(self, room: str, member: str, value: str, ttl: int) -> None:
-        self._call("/pipeline", [["HSET", KEY + room, member, value], ["EXPIRE", KEY + room, str(ttl)]])
+    def put(self, room: str, member: str, value: str, ttl=None) -> None:
+        cmds = [["HSET", KEY + room, member, value]]
+        if ttl is not None:
+            cmds.append(["EXPIRE", KEY + room, str(ttl)])
+        self._call("/pipeline", cmds)
 
     def get(self, room: str) -> dict[str, str]:
         res = self._call("", ["HGETALL", KEY + room])
@@ -189,11 +200,11 @@ def room_view(store, room: str, now: float) -> list[dict]:
     for member, raw in members.items():
         try:
             fix = json.loads(raw)
-            fresh = fix["until"] > now * 1000 and fix["at"] > (now - STALE) * 1000
+            fresh = fix["until"] > now * 1000 and (fix.get("left") or fix["at"] > (now - STALE) * 1000)
         except (ValueError, KeyError, TypeError):
             fresh = False
         if fresh:
-            out.append(dict(fix, id=member))
+            out.append({"id": member, "left": True, "at": fix["at"]} if fix.get("left") else dict(fix, id=member))
         else:
             gone.append(member)
     if gone:
@@ -267,7 +278,9 @@ def serve_share(handler: BaseHTTPRequestHandler, store) -> None:
             return send_json(handler, 200, {"ok": True, "until": fix["until"], "now": int(now * 1000),
                                             "members": [m for m in room_view(store, room, now) if m["id"] != member]})
         if op == "leave":
-            store.delete(room, member)
+            # Una marca breve en vez de borrar: los demás distinguen «ha dejado de compartir» de «sin cobertura».
+            mark = {"left": 1, "at": int(now * 1000), "until": int((now + LEFT_TTL) * 1000)}
+            store.put(room, member, json.dumps(mark, separators=(",", ":")), None)
             return send_json(handler, 200, {"ok": True})
         raise ShareError(400, "Operación no válida.")
     except ShareError as exc:
