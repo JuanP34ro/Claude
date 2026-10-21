@@ -98,13 +98,22 @@ function scheduleSave(){clearTimeout(saveTimer);saveTimer=setTimeout(save,400);}
 let map,slots,networkProxy=false,proxyKnown=false,proxyReady=null,mode='pan',draft=[],gps=null,gpsWatch=null,alertDismissed=false;
 // GPS en la barca: el mapa te sigue (hasta que lo arrastras), se dibuja hacia dónde te mueves y a qué velocidad, y queda el rastro del recorrido.
 // Rumbo y velocidad los da el móvil; si no los da (parado o según el navegador), se calculan con los dos últimos puntos.
-const GPS_STALE=12000,GPS_MOVING=.6;let gpsTrail=[],gpsTick=null,gpsHintShown=false,pendingTrail=null;
-function gpsFix(p){const c=[p.coords.longitude,p.coords.latitude],at=p.timestamp||Date.now(),prev=gps;let speed=Number.isFinite(p.coords.speed)&&p.coords.speed>=0?p.coords.speed:null,course=Number.isFinite(p.coords.heading)&&p.coords.heading>=0?p.coords.heading:null;
- if(prev&&(speed===null||course===null)){const dt=(at-prev.at)/1000,d=distance(prev.coords,c);if(dt>=.5&&dt<=30){if(speed===null)speed=d/dt;if(course===null&&d>=Math.max(2.5,p.coords.accuracy*.4))course=bearing(prev.coords,c);}}
- if(course===null&&prev?.course!==null&&prev&&speed!==null&&speed<GPS_MOVING)course=prev.course;
- if(course!==null&&prev?.course!==null&&prev)course=(prev.course+(((course-prev.course+540)%360)-180)*.5+360)%360;
- const moving=speed!==null&&speed>=GPS_MOVING&&course!==null;
- gps={coords:c,accuracy:p.coords.accuracy,at,speed,course,moving,follow:prev?prev.follow:true};
+const GPS_STALE=12000,GPS_MOVING=.6,GPS_STOP=.35;let gpsTrail=[],gpsHist=[],gpsTick=null,gpsHintShown=false,pendingTrail=null;
+// Rumbo como en un plóter: si el móvil no lo da, se calcula sobre una base de varios metros (entre dos puntos seguidos, a velocidad de
+// barca, la distancia es menor que el error del GPS y salía nulo). Se mantiene 20 s sin rumbo nuevo y «en marcha» tiene histéresis
+// (arranca a 0,6 m/s, se para tras 4 s por debajo de 0,35) para que la flecha no cambie a punto a cada rato.
+function gpsFix(p){const c=[p.coords.longitude,p.coords.latitude],at=p.timestamp||Date.now(),prev=gps,acc=p.coords.accuracy;let speed=Number.isFinite(p.coords.speed)&&p.coords.speed>=0?p.coords.speed:null,course=Number.isFinite(p.coords.heading)&&p.coords.heading>=0?p.coords.heading:null;
+ gpsHist.push({at,c});while(gpsHist.length>40||(gpsHist.length&&at-gpsHist[0].at>30000))gpsHist.shift();
+ // Velocidad sin dato del móvil: sobre los últimos 3–6 s, y por debajo del error del GPS cuenta como parado (el temblor de un GPS quieto parecía marcha).
+ if(speed===null&&gpsHist.length>1){let ref=null;for(let i=gpsHist.length-2;i>=0;i--){const h=gpsHist[i];if(at-h.at>6000)break;if(at-h.at>=3000)ref=h;}if(ref){const d=distance(ref.c,c);speed=d<Math.max(5,acc*.5)?0:d/((at-ref.at)/1000);}}
+ if(speed!==null&&prev&&prev.speed!==null&&at-prev.at<=10000)speed=prev.speed*.4+speed*.6;
+ if(course===null){const base=Math.max(5,acc*.6);for(let i=gpsHist.length-2;i>=0;i--){const h=gpsHist[i];if(at-h.at>20000)break;if(distance(h.c,c)>=base){course=bearing(h.c,c);break;}}}
+ const fresh=course!==null,courseAt=fresh?at:(prev?.courseAt||0);
+ if(!fresh&&prev&&prev.course!==null&&at-courseAt<=20000)course=prev.course;
+ if(fresh&&prev&&prev.course!==null&&at-prev.at<=10000)course=(prev.course+(((course-prev.course+540)%360)-180)*.6+360)%360;
+ const slowSince=speed!==null&&speed<GPS_STOP?(prev?.slowSince||at):0;
+ const moving=course!==null&&speed!==null&&(prev?.moving?!(slowSince&&at-slowSince>=4000):speed>=GPS_MOVING);
+ gps={coords:c,accuracy:acc,at,speed,course,courseAt,slowSince,moving,movedAt:moving?at:(prev?.movedAt||0),follow:prev?prev.follow:true};
  const last=gpsTrail[gpsTrail.length-1];if(!last||distance(last,c)>=Math.max(3,p.coords.accuracy*.3)){gpsTrail.push(c);if(gpsTrail.length>3000)gpsTrail.splice(0,500);}teamOnFix();}
 // Observación del GPS. Al volver a la app (WhatsApp, pantalla bloqueada) el móvil a veces deja de dar posiciones sin avisar: si llevan
 // más de 12 s sin llegar, se vuelve a pedir la observación sin tocar nada.
@@ -123,8 +132,8 @@ function offerTrail(trail){if(!trail||trail.length<2)return;const len=pathLength
 // La pantalla se mantiene encendida con el GPS activo en el mapa (si se apaga, el móvil deja de dar posiciones) y en «Mis cañas» si así se eligió.
 function syncWakeLock(){setWakeLock((gpsWatch!==null&&screen==='map')||(screen==='rods'&&!!state.settings.keepAwake)||!!offJob||!!team);}
 function renderGpsBadge(){const b=$('gpsBadge');if(!gps){b.hidden=true;return;}b.hidden=false;const stale=gpsStale(),kmh=gps.speed!==null?gps.speed*3.6:null,camp=activeCamp(),dc=camp?distance(camp.geometry.coordinates,gps.coords):null,bc=camp?bearing(camp.geometry.coordinates,gps.coords):0;
- b.classList.toggle('stale',stale);b.classList.toggle('moving',gps.moving);$('gpsArrow').style.transform=`rotate(${(gps.course??0).toFixed(0)}deg)`;$('gpsArrow').style.visibility=gps.moving?'':'hidden';
- $('gpsMain').textContent=stale?`Última posición hace ${Math.round((Date.now()-gps.at)/1000)} s · sin señal nueva`:gps.moving?`${kmh.toFixed(1).replace('.',',')} km/h · rumbo ${Math.round(gps.course)}° ${cardinal(gps.course)}`:`Parado · ±${Math.round(gps.accuracy)} m`;
+ const held=!gps.moving&&gps.course!==null&&Date.now()-gps.movedAt<60000;b.classList.toggle('stale',stale);b.classList.toggle('moving',gps.moving);b.classList.toggle('held',held);$('gpsArrow').style.transform=`rotate(${(gps.course??0).toFixed(0)}deg)`;$('gpsArrow').style.visibility=gps.moving||held?'':'hidden';
+ $('gpsMain').textContent=stale?`Última posición hace ${Math.round((Date.now()-gps.at)/1000)} s · sin señal nueva`:gps.moving?`${kmh.toFixed(1).replace('.',',')} km/h · rumbo ${Math.round(gps.course)}° ${cardinal(gps.course)}`:`Parado${held?` · último rumbo ${Math.round(gps.course)}° ${cardinal(gps.course)}`:''} · ±${Math.round(gps.accuracy)} m`;
  $('gpsSub').textContent=[gps.moving?`±${Math.round(gps.accuracy)} m`:'',dc!==null?`puesto a ${fmtDist(dc)} · ${Math.round(bc)}° ${cardinal(bc)}`:'',gps.follow?'':'toca el GPS para volver a seguirte'].filter(Boolean).join(' · ');renderWccGps();}
 const sourcePromises=new Map(),capPromises=new Map();
 // Imagen de mapa leída con fetch (solo por el proxy, mismo origen): tercera vía cuando la etiqueta <img> falla, y además se sabe por qué falla.
@@ -239,6 +248,7 @@ function drawVectors(){if(!map)return;let s=wccVectors();const camp=activeCamp()
  if(gps){if(gpsTrail.length>1)s+=`<path d="${polyPath(gpsTrail)}" fill="none" stroke="#0b2234" stroke-width="5" stroke-opacity=".6" stroke-linejoin="round"/><path d="${polyPath(gpsTrail)}" fill="none" stroke="#77bfff" stroke-width="2" stroke-dasharray="1 7" stroke-linecap="round" stroke-linejoin="round"/>`;
   const p=map.project(gps.coords),q=map.project(destination(gps.coords,gps.accuracy,90)),rad=Math.hypot(q[0]-p[0],q[1]-p[1]),stale=gpsStale(),x=p[0].toFixed(1),y=p[1].toFixed(1);s+=`<circle cx="${x}" cy="${y}" r="${rad.toFixed(1)}" fill="#77bfff" fill-opacity="${stale?'.05':'.12'}" stroke="#77bfff" stroke-opacity="${stale?'.4':'1'}"${stale?' stroke-dasharray="4 4"':''}/>`;
   if(gps.moving&&!stale){const ahead=map.project(destination(gps.coords,Math.max(15,gps.speed*20),gps.course));s+=`<line x1="${x}" y1="${y}" x2="${ahead[0].toFixed(1)}" y2="${ahead[1].toFixed(1)}" stroke="#77bfff" stroke-width="2" stroke-dasharray="3 4" stroke-opacity=".8"/><g transform="translate(${x} ${y}) rotate(${gps.course.toFixed(1)})"><path d="M0-13 9 9 0 4-9 9Z" fill="#77bfff" stroke="#fff" stroke-width="2" stroke-linejoin="round"/></g>`;}
+  else if(!stale&&gps.course!==null&&Date.now()-gps.movedAt<60000)s+=`<g transform="translate(${x} ${y}) rotate(${gps.course.toFixed(1)})"><path d="M0-13 9 9 0 4-9 9Z" fill="#29231a" stroke="#77bfff" stroke-width="2" stroke-linejoin="round"/></g>`;
   else s+=`<circle cx="${x}" cy="${y}" r="6" fill="${stale?'#29231a':'#77bfff'}" stroke="${stale?'#77bfff':'#fff'}" stroke-width="2"/>`;}
  s+=teamVectors();
  for(const f of state.features.filter(f=>f.geometry.type==='Point')){const p=map.project(f.geometry.coordinates);if(p[0]<-250||p[0]>map.width+250||p[1]<-100||p[1]>map.height+100)continue;const c=KINDS[f.properties.kind][1],sub=camp&&(state.settings.distLabels||f.id===spotSheetId)&&f.id!==camp.id&&f.properties.kind!=='camp'?`<text x="19" y="18" class="map-label sub">${fmtFromCamp(camp.geometry.coordinates,f.geometry.coordinates).short}</text>`:'';const shape=f.properties.kind==='camp'?'<path d="M-8 7 0-8 8 7Z" fill="currentColor" stroke="#312b22" stroke-width="1.5"/>':'<circle r="5" fill="currentColor"/>';if(f.id===spotSheetId)s+=`<circle class="spot-focus" cx="${p[0].toFixed(1)}" cy="${p[1].toFixed(1)}" r="30" fill="none" stroke="#e2c587" stroke-width="2.5"/>`;s+=`<g class="point-marker" data-point-id="${esc(f.id)}" tabindex="0" role="button" aria-label="Editar ${esc(f.properties.name)}" transform="translate(${p[0].toFixed(1)} ${p[1].toFixed(1)})" style="color:${c}"><circle r="24" fill="transparent"/><circle r="14" fill="#29231a" stroke="${c}" stroke-width="2"/>${shape}${rodLeds(f.id)}<text x="19" y="4" class="map-label">${esc(f.properties.name.slice(0,34))}</text>${sub}</g>`;}
@@ -1072,7 +1082,8 @@ function teamStatusOf(m){const o=aimOrigin(),d=o?distance(o.coords,m.coords):nul
  return {d,b,o,zone,text:[d!==null?`${fmtDist(d)} · ${fmtWraps(d)} · ${Math.round(b)}° ${cardinal(b)}`:'',zone].filter(Boolean).join(' · ')};}
 function teamVectors(){if(!team||!map)return '';let s='';for(const m of teamMates()){const p=map.project(m.coords);if(p[0]<-60||p[0]>map.width+60||p[1]<-60||p[1]>map.height+60)continue;const old=m.pos>60||!!m.lost,x=p[0].toFixed(1),y=p[1].toFixed(1),q=map.project(destination(m.coords,m.acc||0,90)),rad=Math.hypot(q[0]-p[0],q[1]-p[1]);
  if(m.acc&&rad>9)s+=`<circle cx="${x}" cy="${y}" r="${rad.toFixed(1)}" fill="${TEAM_COLOR}" fill-opacity=".1" stroke="${TEAM_COLOR}" stroke-opacity=".7"${old?' stroke-dasharray="4 4"':''}/>`;
- s+=m.spd>=GPS_MOVING&&m.crs!==null&&!old?`<g transform="translate(${x} ${y}) rotate(${m.crs})"><path d="M0-13 9 9 0 4-9 9Z" fill="${TEAM_COLOR}" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></g>`:`<circle cx="${x}" cy="${y}" r="7" fill="${old?'#29231a':TEAM_COLOR}" stroke="${old?TEAM_COLOR:'#ffffff'}" stroke-width="2"/>`;
+ const mv=m.mv!==undefined?!!m.mv:m.spd>=GPS_MOVING;
+ s+=mv&&m.crs!==null&&!old?`<g transform="translate(${x} ${y}) rotate(${m.crs})"><path d="M0-13 9 9 0 4-9 9Z" fill="${TEAM_COLOR}" stroke="#ffffff" stroke-width="2" stroke-linejoin="round"/></g>`:m.crs!==null&&!old&&!m.lost?`<g transform="translate(${x} ${y}) rotate(${m.crs})"><path d="M0-13 9 9 0 4-9 9Z" fill="#29231a" stroke="${TEAM_COLOR}" stroke-width="2" stroke-linejoin="round"/></g>`:`<circle cx="${x}" cy="${y}" r="7" fill="${old?'#29231a':TEAM_COLOR}" stroke="${old?TEAM_COLOR:'#ffffff'}" stroke-width="2"/>`;
  s+=`<text x="${(p[0]+13).toFixed(1)}" y="${(p[1]-10).toFixed(1)}" class="map-label">${esc(m.name)}</text><text x="${(p[0]+13).toFixed(1)}" y="${(p[1]+6).toFixed(1)}" class="map-label sub">${esc(m.lost?`sin señal ${teamAgo(m.age)}`:teamAgo(m.pos))}</text>`;}
  return s;}
 function renderTeam(full=true){const b=$('teamBadge');if(!b)return;b.hidden=!team;$('teamBtn')?.classList.toggle('active',!!team);if(!team){if($('teamDialog').open)renderTeamDialog();return;}
@@ -1089,14 +1100,14 @@ function renderTeamDialog(full=true){const on=!!team;$('teamOff').hidden=on;$('t
 function teamSchedule(ms){clearTimeout(teamTimer);teamTimer=team?setTimeout(teamPoll,document.hidden?Math.max(ms,60000):ms):null;}
 // Lo que devuelve el servidor: compañeros con su edad según el reloj del servidor, no el del móvil.
 function teamApply(d){if(!team)return;const now=performance.now(),seen={},before=team.members,list=d.members||[];
- for(const m of list){if(m.id===team.me)continue;if(m.left){if(before[m.id]&&!before[m.id].left)toast(`${before[m.id].name} ha dejado de compartir su posición.`);continue;}seen[m.id]={id:m.id,name:m.name,coords:[m.lon,m.lat],acc:m.acc,spd:m.spd,crs:m.crs,fix:m.fix||0,age:(d.now-m.at)/1000,seen:now};}
+ for(const m of list){if(m.id===team.me)continue;if(m.left){if(before[m.id]&&!before[m.id].left)toast(`${before[m.id].name} ha dejado de compartir su posición.`);continue;}seen[m.id]={id:m.id,name:m.name,coords:[m.lon,m.lat],acc:m.acc,spd:m.spd,crs:m.crs,mv:m.mv,fix:m.fix||0,age:(d.now-m.at)/1000,seen:now};}
  // Quien calla sin despedirse (sin cobertura, móvil apagado) se sigue viendo en su última posición media hora, marcado «sin señal».
  for(const id in before){const b=before[id];if(seen[id]||list.some(m=>m.id===id&&m.left))continue;const lostAt=b.lostAt||Date.now();if(Date.now()-lostAt>30*60e3)continue;seen[id]={...b,lost:true,lostAt};if(!b.lost)toast(`${b.name} lleva un rato sin señal: se muestra su última posición.`);}
  if(team.polled)for(const id in seen)if(!before[id])toast(`${seen[id].name} se ha unido: ya lo ves en el mapa.`);team.polled=true;
  team.members=seen;teamFails=0;team.err='';if(aim?.target?.team){if(seen[aim.target.team]){aim.target.coords=seen[aim.target.team].coords;updateAim();}else{stopAim();toast('Tu compañero ya no manda su posición: se deja de apuntar.');}}renderTeam(false);map?.render(false);}
-const teamMoving=()=>(!!gps&&!gpsStale()&&gps.moving)||teamMates().some(m=>m.spd>=GPS_MOVING&&m.age<30);
+const teamMoving=()=>(!!gps&&!gpsStale()&&gps.moving)||teamMates().some(m=>(m.mv!==undefined?!!m.mv:m.spd>=GPS_MOVING)&&m.age<30);
 function teamFail(e,what){if(!team)return;teamFails++;team.err=e.status===503?e.message:!navigator.onLine||e.status===0?`Sin cobertura o ${e.message||'sin respuesta'}: se reintentará.`:`${what}: ${e.message}`;renderTeam();}
-const teamPos=()=>({room:team.room,member:team.me,op:'put',name:team.name,lat:gps.coords[1],lon:gps.coords[0],acc:Math.min(5000,Math.round(gps.accuracy*10)/10),spd:gps.speed===null?null:clamp(gps.speed,0,100),crs:gps.course===null?null:((gps.course%360)+360)%360,fix:Math.max(0,Math.round((Date.now()-gps.at)/1000)),until:team.rolling?Date.now()+24*3600e3:team.until});
+const teamPos=()=>({room:team.room,member:team.me,op:'put',name:team.name,lat:gps.coords[1],lon:gps.coords[0],acc:Math.min(5000,Math.round(gps.accuracy*10)/10),spd:gps.speed===null?null:clamp(gps.speed,0,100),crs:gps.course===null?null:((gps.course%360)+360)%360,mv:gps.moving?1:0,fix:Math.max(0,Math.round((Date.now()-gps.at)/1000)),until:team.rolling?Date.now()+24*3600e3:team.until});
 // Cada 5 s si alguien se mueve, 12 s si no: una sola petición manda tu posición (si hay GPS) y lee la sala. Si falla, espera más cada vez.
 async function teamPoll(){if(!team||team.busy)return;if(!team.rolling&&Date.now()>team.until){teamStop(true);toast('Se ha acabado el tiempo: ya no compartes tu posición.');return;}team.busy=Date.now();
  try{const live=!!gps,body=live?teamPos():{room:team.room,op:'read'},d=await teamApi(body);if(!team)return;if(live){team.sentAt=Date.now();team.sentCoords=gps.coords.slice();if(team.rolling){team.until=body.until;teamSave();}}teamApply(d);}

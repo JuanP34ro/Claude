@@ -87,6 +87,7 @@ def parse_fix(body: dict, now: float) -> tuple[dict, int]:
         "acc": _clamped(body.get("acc"), 0, 5000, 1) or 0,
         "spd": _clamped(body.get("spd"), 0, 100, 2),
         "crs": None if _clamped(body.get("crs"), -1e9, 1e9, 1) is None else round(float(body.get("crs")) % 360, 1),
+        "mv": 1 if body.get("mv") in (1, True, "1") else 0,  # «en marcha» según el móvil que lo manda (con histéresis)
         "fix": int(_clamped(body.get("fix"), 0, 86400, 0) or 0),  # segundos desde la posición GPS: con la pantalla apagada se reenvía la última
         "at": int(now * 1000),
         "until": int((now + ttl) * 1000),

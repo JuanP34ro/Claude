@@ -55,6 +55,8 @@ class ValidationTests(unittest.TestCase):
         self.assertEqual(S.parse_fix(fix(fix=125.7), now)[0]["fix"], 126)
         self.assertEqual(S.parse_fix(fix(fix=1e9), now)[0]["fix"], 86400)
         self.assertEqual(S.parse_fix(fix(fix="x"), now)[0]["fix"], 0)
+        self.assertEqual([S.parse_fix(fix(mv=v), now)[0]["mv"] for v in (True, 1, "1", False, "x", None)], [1, 1, 1, 0, 0, 0])
+        self.assertEqual(S.parse_fix(fix(), now)[0]["mv"], 0)
 
     def test_room_view_drops_expired_and_stale(self):
         store, now = S.MemoryStore(), time.time()

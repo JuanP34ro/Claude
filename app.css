@@ -733,6 +733,7 @@ html.night .team-badge{border-color:var(--nr-dim)}html.night .team-dot{backgroun
 .wcc-ev b{display:block;font-size:14px;line-height:1.35}.wcc-ev small{display:block;font-size:12.5px;color:var(--muted);line-height:1.4;margin-top:2px}
 .wcc-ev .wcc-ev-state{color:var(--gold);font-weight:600}.wcc-ev.live time,.wcc-ev.next time,.wcc-ev.k-start b,.wcc-ev.k-end b{color:var(--gold)}
 .wcc-ev.done{opacity:.55}.wcc-ev button{min-height:44px;padding:4px 12px}
+.gps-badge.held #gpsArrow{opacity:.55}
 .gps-badge small.gps-wcc{font-weight:700;color:var(--c-fg)}.gps-badge small.gps-wcc.ok{color:var(--gold)}.gps-badge small.gps-wcc.warn{color:var(--warm)}
 html.night .gps-badge small.gps-wcc,html.night .gps-badge.stale strong,html.night .team-badge.warn small{color:var(--nr)}html.night .map-label.wcc-sec,html.night .map-label.wcc-area{fill:#ff3322}
 /* ==== fin WCC 2026 ==== */
