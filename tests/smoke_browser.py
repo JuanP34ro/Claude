@@ -130,6 +130,15 @@ def main():
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas')
                 assert page.evaluate('window.OrellanaAtlas.getState().features.length') == 1, 'Storage was not restored'
+                # Sonda: a synthetic Lowrance .sl2 (200 pings along a line, 2→12 m) imports into the map and the profile
+                from test_sonar import synthetic_sl2
+                page.locator('#sonarIn').set_input_files({'name': 'prueba.sl2', 'mimeType': 'application/octet-stream', 'buffer': synthetic_sl2()})
+                page.wait_for_function('window.OrellanaAtlas.sonar().logs.length === 1', timeout=15000)
+                log = page.evaluate('window.OrellanaAtlas.sonar().logs[0]')
+                assert log['frames'] == 200 and 50 <= log['n'] <= 70 and (log['zmin'], log['zmax'], log['tmin']) == (2.0, 12.0, 19.5), log
+                assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'map' and page.evaluate("document.querySelectorAll('#map svg circle[fill^=\"hsl\"]').length") >= 50, 'soundings not drawn'
+                page.locator('[data-go="spots"]').click()
+                assert page.locator('#sonarProfile svg').count() == 1 and page.locator('#sonarList li').count() == 1, 'sonar section not rendered'
                 page.locator('[data-go="map"]').click()
                 page.locator('#locateBtn').click()
                 page.wait_for_function('window.OrellanaAtlas.getGps() && window.OrellanaAtlas.getGps().follow', timeout=10000)
@@ -253,7 +262,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search, zone from GPS and programme countdown, weather reading, alerts, daily outlook and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, sonar log import, GPS follow, WCC 2026 peg search, zone from GPS and programme countdown, weather reading, alerts, daily outlook and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()

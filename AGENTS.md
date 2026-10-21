@@ -14,6 +14,7 @@ Editar `app.js`, `app.css` e `index.template.html`; `index.html` es un artefacto
 `api/`: adaptadores de Vercel. No exponer el servidor local de desarrollo a Internet.
 `share_relay.py` + `api/share.py`: relé de «Compartir con mi compañero»; última posición por móvil y sala (con la antigüedad del GPS) y una marca breve de quien se va, con caducidad, en Upstash Redis (credenciales solo en el servidor; en memoria en local). No registrar posiciones ni códigos de sala.
 `wcc2026.js` (+ `tools/wcc2026_kml.py`): capa temporal del World Carp Classic 2026 (puestos, zonas, accesos y programa oficial con cuenta atrás) generada desde el KML de la organización, sin nombres de comisarios; quitarla tras el 24-10-2026 como indica README («Capa temporal WCC 2026»).
+`tools/sl2_to_json.py` + bloque «Sonda» de `app.js` (rama `claude/sonar`): lectura de registros `.sl2` de Lowrance, solo cabeceras; sondeos medidos en IndexedDB `orellana-atlas-sonar`. No interpolar ni inventar profundidades.
 `sw.js`: service worker solo para abrir la app sin conexión (HTML, manifiesto, iconos); no intercepta imágenes de mapa. Los mapas que el usuario descarga a propósito en «Mapas sin conexión» (caché `cfn-tiles-*`, solo capas IGN/IDEEX con licencia CC BY 4.0 y su atribución) los lee la propia app con un tiempo límite. No cachear por su cuenta mapas, `/api/` ni Open-Meteo.
 
 ## Comandos
