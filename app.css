@@ -225,7 +225,7 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .spot-back .icon{width:18px;height:18px}
 .spot-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin:12px 0}
 .spot-actions button{display:flex;flex-direction:column;align-items:center;gap:4px;min-height:58px;font-size:13px;font-weight:600;padding:6px}
-.spot-actions .icon{color:var(--gold)}
+.spot-actions .icon{color:var(--gold)}.spot-actions.four{grid-template-columns:repeat(4,1fr)}.spot-actions.four button{font-size:12.5px;padding:6px 2px}.spot-actions.two{grid-template-columns:repeat(2,1fr)}.spot-actions button.hi{border-color:#c9a45c;color:#f3e3b9;background:#1d170f}html.night .spot-actions button.hi{border-color:var(--nr);color:var(--nr);background:#160200}
 .spot-facts{display:grid;grid-template-columns:1fr 1fr;gap:8px 14px;margin:0 0 14px;font-size:14px}
 .spot-facts div{border-bottom:1px solid var(--line);padding-bottom:5px;min-width:0}
 .spot-facts dt{font-size:10.5px;letter-spacing:.1em;text-transform:uppercase;color:var(--muted);font-weight:700}

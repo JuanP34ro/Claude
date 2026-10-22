@@ -166,6 +166,19 @@ def main():
                 page.locator('[data-curtain="topo"]').click()
                 assert page.evaluate('window.OrellanaAtlas.priv().inCurtain') is False and page.evaluate("document.getElementById('topoRaster').style.clipPath").replace('px', '').startswith('inset(0 '), 'curtain did not go back to the plan'
                 page.locator('#layersClose').click()
+                # Toque en el agua: ficha de lectura con perfil (solo con puesto o GPS), nuevo spot y orilla de hoy.
+                assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{b[0] + (b[2] - b[0]) * 0.4}, {(b[1] + b[3]) / 2}])') is True, 'tap on the layer not handled'
+                page.wait_for_function("!document.getElementById('privSheet').hidden && window.OrellanaAtlas.priv().mark()", timeout=3000)
+                has_origin = page.evaluate('!!window.OrellanaAtlas.getState().activeCampId || !!window.OrellanaAtlas.getGps()')
+                assert 'Fondo' in page.locator('#privSheetTitle').inner_text() and page.locator('#privSheetFacts div').count() >= 2 and page.locator('#privSheetProfile').is_visible() == has_origin, f'reading sheet wrong (origin {has_origin})'
+                page.locator('#privSheetSpot').click()
+                page.wait_for_function("document.getElementById('pointDialog').open", timeout=3000)
+                assert page.evaluate("document.getElementById('privSheet').hidden") is True and page.evaluate('window.OrellanaAtlas.priv().mark()') is None, 'reading sheet should close when creating a spot'
+                page.evaluate("document.getElementById('pointDialog').close()")
+                assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{b[0] + (b[2] - b[0]) * 0.4}, {(b[1] + b[3]) / 2}])') is True
+                page.wait_for_function("!document.getElementById('privSheet').hidden", timeout=3000)
+                page.locator('#privSheetClose').click()
+                page.wait_for_function("document.getElementById('privSheet').hidden", timeout=3000)
                 assert page.evaluate(f'window.OrellanaAtlas.priv().setLevel({lid!r}, 2)') and page.evaluate('window.OrellanaAtlas.priv().layers[0].level') == 2, 'level not set'
                 prof = page.evaluate(f'window.OrellanaAtlas.priv().profile([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
                 assert prof['len'] > 300 and max(v for v in prof['z'] if v is not None) > 10 and prof['level'] == 2 and prof['cell'] > 0 and len(prof['land']) == len(prof['z']), f'profile wrong: {prof["len"]}'
