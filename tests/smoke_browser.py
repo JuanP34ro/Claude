@@ -146,12 +146,21 @@ def main():
                 assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'map', 'import did not show the map'
                 page.wait_for_function("document.querySelectorAll('#map svg image').length === 1", timeout=5000)
                 b = priv['layers'][0]['bounds']
-                assert page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.4}, {(b[1] + b[3]) / 2}])') == [17.8], 'depth lookup'
+                z = page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.4}, {(b[1] + b[3]) / 2}])')[0]
+                assert z is not None and abs(z - 17.8) < 0.6, f'depth lookup: {z}'   # interpolated between the four nearest cells
                 assert page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.95}, {(b[1] + b[3]) / 2}])') == [None], 'land must have no depth'
+                page.evaluate(f'window.OrellanaAtlas.setView([{(b[0] + b[2]) / 2}, {(b[1] + b[3]) / 2}], 17)')
+                page.wait_for_function("window.OrellanaAtlas.priv().contours() > 5", timeout=5000)
+                assert page.locator('#vectors text.priv-z').count() >= 1, 'contour labels missing'
+                lid = priv['layers'][0]['id']
+                assert page.evaluate(f'window.OrellanaAtlas.priv().setLevel({lid!r}, 2)') and page.evaluate('window.OrellanaAtlas.priv().layers[0].level') == 2, 'level not set'
+                prof = page.evaluate(f'window.OrellanaAtlas.priv().profile([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
+                assert prof['len'] > 300 and max(v for v in prof['z'] if v is not None) > 10 and prof['level'] == 2, f'profile wrong: {prof["len"]}'
                 page.locator('[data-go="spots"]').click()
                 page.locator('[data-priv-three]').first.click()
-                page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300", timeout=5000)
-                assert page.evaluate("(() => { const c = document.getElementById('priv3d'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 16) if (!(d[i] === 11 && d[i + 1] === 17 && d[i + 2] === 24)) n++; return n; })()") > 500, '3D view painted nothing'
+                page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300 && window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0", timeout=5000)
+                three = page.evaluate('window.OrellanaAtlas.priv().three()')
+                assert three['mode'] in ('gl', '2d'), f'3D mode {three}'
                 page.locator('#privDialog .close-dialog').click()
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas')
@@ -279,7 +288,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, private bottom layer, WCC 2026 peg search, zone from GPS and programme countdown, weather reading, alerts, daily outlook and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, private bottom layer (contours, level, profile, 3D), WCC 2026 peg search, zone from GPS and programme countdown, weather reading, alerts, daily outlook and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()

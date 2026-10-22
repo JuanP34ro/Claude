@@ -1061,15 +1061,17 @@ function wirePhotos(){if(!$('catchPhotoBtn'))return;photoKeys().then(k=>{for(con
 // ==== Capa propia (solo en este móvil) ====
 // Una rejilla de profundidades con su posición, preparada por el usuario (archivo .json «cfn-capa»): se guarda en IndexedDB,
 // fuera de orellana-atlas-v1 y de la copia de seguridad, no se exporta ni se comparte, y se pinta como imagen georreferenciada
-// debajo de las demás capas. La app no sabe de dónde salen los datos: lo dice el campo «source» que escribió quien la preparó.
-const PRIV_DB='orellana-atlas-private',PRIV_UI='orellana-atlas-private-ui',PRIV_NONE=65535;
-let privDb=null,privLayers=[],privUi={on:true,opacity:80},p3=null,p3Frame=null;
-const privUrls=new Map(),privPending=new Set();
+// debajo de las demás capas, con sus curvas de nivel encima. La app no sabe de dónde salen los datos: lo dice el campo «source».
+// «Nivel de hoy»: la rejilla trae profundidades a la referencia de quien la hizo; el usuario toca la orilla real y desde ahí
+// todo se muestra como fondo de hoy (lo que queda por encima del agua, en seco). Perfil: corte del fondo desde el puesto o el GPS.
+const PRIV_DB='orellana-atlas-private',PRIV_UI='orellana-atlas-private-ui',PRIV_NONE=65535,PRIV_STOPS=[[0,[223,244,255]],[2,[166,222,248]],[5,[95,179,232]],[10,[45,127,198]],[15,[27,88,160]],[20,[15,58,120]],[26,[8,38,81]]];
+let privDb=null,privLayers=[],privUi={on:true,opacity:85},privArm=null,privLine=null,p3=null,p3Frame=null;
+const privUrls=new Map(),privPending=new Set(),privGrids=new Map(),privCont=new Map();
 function privOpen(){if(privDb)return Promise.resolve(privDb);return new Promise((res,rej)=>{if(!('indexedDB' in window))return rej(Error('Este navegador no guarda capas.'));const r=indexedDB.open(PRIV_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('layers',{keyPath:'id'});r.onsuccess=()=>{privDb=r.result;res(privDb);};r.onerror=()=>rej(r.error||Error('No se pudo abrir el almacén de capas.'));});}
 function privTx(mode,run){return privOpen().then(db=>new Promise((res,rej)=>{const t=db.transaction('layers',mode),q=run(t.objectStore('layers'));t.oncomplete=()=>res(q?.result);t.onerror=()=>rej(t.error||Error('Error del almacén de capas.'));}));}
 const privAll=()=>privTx('readonly',s=>s.getAll()).then(v=>v||[]),privPut=l=>privTx('readwrite',s=>s.put(l)),privDel=id=>privTx('readwrite',s=>s.delete(id));
 function privSave(){try{localStorage.setItem(PRIV_UI,JSON.stringify(privUi));}catch{}}
-const privB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),privFmt=z=>z.toFixed(1).replace('.',','),privScale=l=>Math.max(10,Math.ceil(l.zmax/5)*5);
+const privB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),privFmt=z=>z.toFixed(1).replace('.',',');
 // Lee y valida un archivo «cfn-capa» v1: límites [O,S,E,N] en grados, rejilla w×h en decímetros (uint16 base64, 65535 = sin dato) y máscara de tierra opcional (bits).
 function privParse(text){let d;try{d=JSON.parse(text);}catch{throw Error('no es un archivo JSON.');}
  if(d?.type!=='cfn-capa'||d.v!==1)throw Error('no es una capa propia (cfn-capa v1).');
@@ -1080,40 +1082,161 @@ function privParse(text){let d;try{d=JSON.parse(text);}catch{throw Error('no es 
  if(z.length!==w*h)throw Error('la rejilla no coincide con su tamaño.');
  let land=null;if(d.land){try{land=privB64(String(d.land));}catch{throw Error('la máscara de tierra no se puede leer.');}if(land.length<Math.ceil(w*h/8))throw Error('la máscara de tierra no coincide con la rejilla.');}
  let zmax=0;for(const v of z)if(v!==PRIV_NONE&&v>zmax)zmax=v;
- return {id:`priv_${Date.now().toString(36)}${Math.random().toString(36).slice(2,6)}`,name:String(d.name||'Capa propia').slice(0,80),source:String(d.source||'').slice(0,400),bounds:b,w,h,z:new Uint16Array(z),land,zmax:zmax/10,at:new Date().toISOString()};}
+ return {id:`priv_${Date.now().toString(36)}${Math.random().toString(36).slice(2,6)}`,name:String(d.name||'Capa propia').slice(0,80),source:String(d.source||'').slice(0,400),bounds:b,w,h,z:new Uint16Array(z),land,zmax:zmax/10,level:0,at:new Date().toISOString()};}
 const privLand=(l,i)=>!!l.land&&((l.land[i>>3]>>(7-(i&7)))&1);
-const privZ=(l,i,j)=>{const v=l.z[clamp(j,0,l.h-1)*l.w+clamp(i,0,l.w-1)];return v===PRIV_NONE?null:v/10;};
 const privCellM=l=>Math.max(0.1,(l.bounds[2]-l.bounds[0])*111320*Math.cos((l.bounds[1]+l.bounds[3])/2*DEG)/l.w);
-function privCell(l,ll){const [W,S,E,N]=l.bounds;if(ll[0]<W||ll[0]>E||ll[1]<S||ll[1]>N)return null;const a=xy(ll),tl=xy([W,N]),br=xy([E,S]);return [clamp(Math.floor((a[0]-tl[0])/(br[0]-tl[0])*l.w),0,l.w-1),clamp(Math.floor((a[1]-tl[1])/(br[1]-tl[1])*l.h),0,l.h-1)];}
-function privDepthAt(l,ll){const c=privCell(l,ll);if(!c)return null;return privLand(l,c[1]*l.w+c[0])?null:privZ(l,c[0],c[1]);}
-// Sombreado del relieve y color por profundidad (claro somero, azul marino hondo); la luz viene del noroeste.
-function privShade(gx,gy){const nl=Math.hypot(gx,gy,1);return clamp(0.42+0.62*((gx/nl)*-0.5+(gy/nl)*-0.6+(1/nl)*0.62),0.3,1);}
-function privRgb(z,scale,sh,night){const t=Math.min(1,z/scale);let r=150*(1-t)+8*t,g=218*(1-t)+40*t,b=248*(1-t)+120*t;if(night){const lum=0.3*r+0.59*g+0.11*b;r=lum;g=lum*.12;b=lum*.12;}return [r*sh,g*sh,b*sh];}
-// Imagen de la capa, una por capa y modo (día/noche), guardada como blob; tierra y sin dato quedan transparentes.
-function privImage(l){const night=document.documentElement.classList.contains('night'),key=`${l.id}:${night?'n':'d'}`;if(privUrls.has(key))return privUrls.get(key);if(privPending.has(key))return '';privPending.add(key);
- const c=document.createElement('canvas');c.width=l.w;c.height=l.h;const ctx=c.getContext('2d'),img=ctx.createImageData(l.w,l.h),px=img.data,scale=privScale(l),cell=privCellM(l);
- for(let j=0;j<l.h;j++)for(let i=0;i<l.w;i++){const k=j*l.w+i,v=privZ(l,i,j);if(v===null||privLand(l,k))continue;const gx=((privZ(l,i+1,j)??v)-(privZ(l,i-1,j)??v))/(2*cell)*3,gy=((privZ(l,i,j+1)??v)-(privZ(l,i,j-1)??v))/(2*cell)*3,[r,g,b]=privRgb(v,scale,privShade(gx,gy),night);px[k*4]=r;px[k*4+1]=g;px[k*4+2]=b;px[k*4+3]=255;}
+const privLevel=l=>+l.level||0;
+// Rejilla en metros (NaN en tierra y sin dato), una vez por capa.
+function privGrid(l){let g=privGrids.get(l.id);if(g)return g;g=new Float32Array(l.w*l.h);for(let k=0;k<g.length;k++)g[k]=privLand(l,k)||l.z[k]===PRIV_NONE?NaN:l.z[k]/10;privGrids.set(l.id,g);return g;}
+// Coordenadas continuas de rejilla de una posición (0..w, 0..h), o null fuera de la capa.
+function privFrac(l,ll){const [W,S,E,N]=l.bounds;if(ll[0]<W||ll[0]>E||ll[1]<S||ll[1]>N)return null;const a=xy(ll),tl=xy([W,N]),br=xy([E,S]);return [(a[0]-tl[0])/(br[0]-tl[0])*l.w,(a[1]-tl[1])/(br[1]-tl[1])*l.h];}
+function privLL(l,fx,fy){const [W,S,E,N]=l.bounds,tl=xy([W,N]),br=xy([E,S]);return lonlat([tl[0]+(br[0]-tl[0])*fx/l.w,tl[1]+(br[1]-tl[1])*fy/l.h]);}
+// Profundidad de la carta interpolada entre las cuatro celdas vecinas; cerca de la tierra vale la celda más próxima.
+function privSample(l,fx,fy){const g=privGrid(l),x=clamp(fx-.5,0,l.w-1),y=clamp(fy-.5,0,l.h-1),i=Math.min(l.w-2,Math.floor(x)),j=Math.min(l.h-2,Math.floor(y)),tx=x-i,ty=y-j;
+ const a=g[j*l.w+i],b=g[j*l.w+i+1],c=g[(j+1)*l.w+i],d=g[(j+1)*l.w+i+1];
+ if(!isNaN(a)&&!isNaN(b)&&!isNaN(c)&&!isNaN(d))return a*(1-tx)*(1-ty)+b*tx*(1-ty)+c*(1-tx)*ty+d*tx*ty;
+ const n=g[Math.round(y)*l.w+Math.round(x)];return isNaN(n)?null:n;}
+function privDepthAt(l,ll){const f=privFrac(l,ll);return f?privSample(l,f[0],f[1]):null;}
+const privToday=(l,z)=>z-privLevel(l);
+const privFmtToday=(l,z)=>{const t=privToday(l,z);return t<=0?`en seco (${privFmt(-t)} m por encima del agua)`:`${privFmt(t)} m`;};
+function privColor(t){if(t<=PRIV_STOPS[0][0])return PRIV_STOPS[0][1];for(let i=1;i<PRIV_STOPS.length;i++){const [d1,c1]=PRIV_STOPS[i],[d0,c0]=PRIV_STOPS[i-1];if(t<=d1){const u=(t-d0)/(d1-d0);return [c0[0]+(c1[0]-c0[0])*u,c0[1]+(c1[1]-c0[1])*u,c0[2]+(c1[2]-c0[2])*u];}}return PRIV_STOPS[PRIV_STOPS.length-1][1];}
+function privShade(gx,gy){const nl=Math.hypot(gx,gy,1);return clamp(0.45+0.6*((gx/nl)*-0.5+(gy/nl)*-0.6+(1/nl)*0.62),0.35,1.05);}
+// Imagen de la capa a 3× con interpolación, color por fondo de hoy y sombreado; tierra, sin dato y lo que hoy está en seco quedan transparentes.
+function privImage(l){const night=document.documentElement.classList.contains('night'),key=`${l.id}:${privLevel(l)}:${night?'n':'d'}`;if(privUrls.has(key))return privUrls.get(key);if(privPending.has(key))return '';privPending.add(key);
+ const U=3,W=l.w*U,H=l.h*U,c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d'),img=ctx.createImageData(W,H),px=img.data,cell=privCellM(l)/U,lev=privLevel(l),Z=new Float32Array(W*H);
+ for(let v=0;v<H;v++)for(let u=0;u<W;u++){const s=privSample(l,(u+.5)/U,(v+.5)/U);Z[v*W+u]=s===null?NaN:s;}
+ for(let v=0;v<H;v++)for(let u=0;u<W;u++){const k=v*W+u,z=Z[k];if(isNaN(z))continue;const t=z-lev;if(t<=0)continue;const zl=Z[k-(u>0?1:0)],zr=Z[k+(u<W-1?1:0)],zu=Z[k-(v>0?W:0)],zd=Z[k+(v<H-1?W:0)];
+  const gx=((isNaN(zr)?z:zr)-(isNaN(zl)?z:zl))/(2*cell)*2.5,gy=((isNaN(zd)?z:zd)-(isNaN(zu)?z:zu))/(2*cell)*2.5,sh=privShade(gx,gy);let [r,g,b]=privColor(t);
+  if(night){const lum=0.3*r+0.59*g+0.11*b;r=lum;g=lum*.12;b=lum*.12;}px[k*4]=r*sh;px[k*4+1]=g*sh;px[k*4+2]=b*sh;px[k*4+3]=255;}
  ctx.putImageData(img,0,0);c.toBlob(b=>{privPending.delete(key);if(b){privUrls.set(key,URL.createObjectURL(b));map?.render(false);}},'image/png');return '';}
-function privForget(id){for(const [k,u] of [...privUrls])if(k.startsWith(id+':')){URL.revokeObjectURL(u);privUrls.delete(k);}}
-function privVectors(){if(!privUi.on||!map||!privLayers.length)return '';let s='';for(const l of privLayers){const [W,S,E,N]=l.bounds,a=map.project([W,N]),b=map.project([E,S]);if(b[0]<-50||a[0]>map.width+50||b[1]<-50||a[1]>map.height+50)continue;const u=privImage(l);if(!u)continue;s+=`<image href="${u}" x="${a[0].toFixed(1)}" y="${a[1].toFixed(1)}" width="${(b[0]-a[0]).toFixed(1)}" height="${(b[1]-a[1]).toFixed(1)}" preserveAspectRatio="none" opacity="${(privUi.opacity/100).toFixed(2)}"/>`;}return s;}
-function privTap(ll){if(!privUi.on||screen!=='map'||!map||!privLayers.length)return false;if(typeof WCC!=='undefined'&&WCC?.pegs){const p=map.project(ll);for(const q of WCC.pegs){const r=map.project([q[2],q[3]]);if(Math.hypot(r[0]-p[0],r[1]-p[1])<22)return false;}}for(const l of privLayers){const z=privDepthAt(l,ll);if(z!==null){toast(`Fondo ${privFmt(z)} m según «${l.name}»`);return true;}}return false;}
+function privForget(id){for(const [k,u] of [...privUrls])if(k.startsWith(id+':')){URL.revokeObjectURL(u);privUrls.delete(k);}for(const k of [...privCont.keys()])if(k.startsWith(id+':'))privCont.delete(k);privGrids.delete(id);}
+// Curvas de nivel (marching squares) enlazadas en polilíneas y simplificadas, en coordenadas de rejilla; una vez por capa y nivel.
+function privIsoline(l,L){const g=privGrid(l),w=l.w,h=l.h,pts=new Map(),adj=new Map();const hid=(i,j)=>(j*w+i)*2,vid=(i,j)=>(j*(w+1)+i)*2+1;
+ const link=(a,b)=>{(adj.get(a)||adj.set(a,[]).get(a)).push(b);(adj.get(b)||adj.set(b,[]).get(b)).push(a);};
+ for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const z00=g[j*w+i],z10=g[j*w+i+1],z01=g[(j+1)*w+i],z11=g[(j+1)*w+i+1];if(isNaN(z00)||isNaN(z10)||isNaN(z01)||isNaN(z11))continue;
+  const m=(z00>=L?1:0)|(z10>=L?2:0)|(z11>=L?4:0)|(z01>=L?8:0);if(m===0||m===15)continue;
+  const T=()=>{const id=hid(i,j);if(!pts.has(id))pts.set(id,[i+(L-z00)/(z10-z00),j]);return id;},B=()=>{const id=hid(i,j+1);if(!pts.has(id))pts.set(id,[i+(L-z01)/(z11-z01),j+1]);return id;},Lf=()=>{const id=vid(i,j);if(!pts.has(id))pts.set(id,[i,j+(L-z00)/(z01-z00)]);return id;},Rt=()=>{const id=vid(i+1,j);if(!pts.has(id))pts.set(id,[i+1,j+(L-z10)/(z11-z10)]);return id;};
+  switch(m){case 1:case 14:link(Lf(),T());break;case 2:case 13:link(T(),Rt());break;case 3:case 12:link(Lf(),Rt());break;case 4:case 11:link(Rt(),B());break;case 6:case 9:link(T(),B());break;case 7:case 8:link(Lf(),B());break;
+   case 5:case 10:{const inside=(z00+z10+z01+z11)/4>=L;if((m===5)===inside){link(T(),Rt());link(Lf(),B());}else{link(Lf(),T());link(Rt(),B());}break;}}}
+ const seen=new Set(),lines=[];const walk=start=>{const line=[];let cur=start,prev=-1;while(cur!==undefined&&!seen.has(cur)){seen.add(cur);line.push(pts.get(cur));const nb=adj.get(cur)||[];let nx;for(const q of nb)if(q!==prev&&!seen.has(q)){nx=q;break;}prev=cur;cur=nx;}return line;};
+ for(const [id,nb] of adj)if(nb.length===1&&!seen.has(id)){const ln=walk(id);if(ln.length>1)lines.push(ln);}
+ for(const id of adj.keys())if(!seen.has(id)){const ln=walk(id);if(ln.length>2){ln.push(ln[0]);lines.push(ln);}}
+ return lines.map(ln=>privSimplify(ln,.22)).filter(ln=>ln.length>1);}
+function privSimplify(pts,tol){if(pts.length<3)return pts;const keep=new Uint8Array(pts.length),n=pts.length-1,closed=pts[0][0]===pts[n][0]&&pts[0][1]===pts[n][1],mid=Math.floor(n/2);keep[0]=keep[n]=1;const st=closed?[[0,mid],[mid,n]]:[[0,n]];if(closed)keep[mid]=1;
+ while(st.length){const [a,b]=st.pop();let far=0,fi=-1;const ax=pts[a][0],ay=pts[a][1],dx=pts[b][0]-ax,dy=pts[b][1]-ay,len=Math.hypot(dx,dy)||1;for(let i=a+1;i<b;i++){const d=Math.abs((pts[i][0]-ax)*dy-(pts[i][1]-ay)*dx)/len;if(d>far){far=d;fi=i;}}if(far>tol&&fi>0){keep[fi]=1;st.push([a,fi],[fi,b]);}}
+ return pts.filter((p,i)=>keep[i]);}
+function privContours(l,step){const key=`${l.id}:${privLevel(l)}:${step}`;let c=privCont.get(key);if(c)return c;c=[];const lev=privLevel(l);for(let t=step;lev+t<=l.zmax;t+=step)c.push({today:t,lines:privIsoline(l,lev+t)});if(lev>0)c.unshift({today:0,lines:privIsoline(l,lev)});privCont.set(key,c);return c;}
+function privVectors(){if(!privUi.on||!map||!privLayers.length)return '';let s='';const z=map.zoom,step=z>=17?1:z>=16?2:z>=15?5:0;
+ for(const l of privLayers){const [W,S,E,N]=l.bounds,a=map.project([W,N]),b=map.project([E,S]);if(b[0]<-50||a[0]>map.width+50||b[1]<-50||a[1]>map.height+50)continue;const u=privImage(l);
+  if(u)s+=`<image href="${u}" x="${a[0].toFixed(1)}" y="${a[1].toFixed(1)}" width="${(b[0]-a[0]).toFixed(1)}" height="${(b[1]-a[1]).toFixed(1)}" preserveAspectRatio="none" opacity="${(privUi.opacity/100).toFixed(2)}"/>`;
+  if(!step)continue;const sx=(b[0]-a[0])/l.w,sy=(b[1]-a[1])/l.h,P=p=>[a[0]+p[0]*sx,a[1]+p[1]*sy];let labels='';
+  const cxm=map.width/2,cym=map.height/2;
+  for(const {today,lines} of privContours(l,step)){const major=today===0||today%5===0;let d='';const cand=[];
+   for(const ln of lines){let vis=false,q='',bi=-1,bd=Infinity;for(let i=0;i<ln.length;i++){const p=P(ln[i]);const on=p[0]>12&&p[0]<map.width-12&&p[1]>12&&p[1]<map.height-12;if(on){vis=true;const dd=Math.hypot(p[0]-cxm,p[1]-cym);if(dd<bd){bd=dd;bi=i;}}else if(p[0]>-40&&p[0]<map.width+40&&p[1]>-40&&p[1]<map.height+40)vis=true;q+=`${i?'L':'M'}${p[0].toFixed(1)},${p[1].toFixed(1)}`;}if(!vis)continue;d+=q;if(today>0&&major&&ln.length>=4&&bi>=0)cand.push({ln,bi,n:ln.length});}
+   if(!d)continue;s+=today===0?`<path class="priv-contour" d="${d}" fill="none" stroke="#ffffff" stroke-opacity=".9" stroke-width="2" stroke-dasharray="6 5" stroke-linejoin="round"/>`:`<path class="priv-contour" d="${d}" fill="none" stroke="#ffffff" stroke-opacity="${major?'.75':'.42'}" stroke-width="${major?1.6:1}" stroke-linejoin="round"/>`;
+   cand.sort((a,b)=>b.n-a.n);for(const {ln,bi} of cand.slice(0,6)){const p=P(ln[bi]),q=P(ln[Math.min(ln.length-1,bi+1)]),r=P(ln[Math.max(0,bi-1)]);let ang=Math.atan2(q[1]-r[1],q[0]-r[0])*180/Math.PI;if(ang>90)ang-=180;if(ang<-90)ang+=180;labels+=`<text class="map-label priv-z" transform="translate(${p[0].toFixed(1)} ${p[1].toFixed(1)}) rotate(${ang.toFixed(0)})" dy="-3">${today}</text>`;}}
+  s+=labels;}
+ if(privLine){const a=map.project(privLine.a),b=map.project(privLine.b);s+=`<line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="#1b1408" stroke-width="5" stroke-opacity=".6"/><line x1="${a[0].toFixed(1)}" y1="${a[1].toFixed(1)}" x2="${b[0].toFixed(1)}" y2="${b[1].toFixed(1)}" stroke="#fff1a8" stroke-width="2" stroke-dasharray="7 4"/><circle cx="${b[0].toFixed(1)}" cy="${b[1].toFixed(1)}" r="6" fill="#fff1a8" stroke="#1b1408" stroke-width="2"/>`;}
+ return s;}
+// Toque en el mapa: lectura del fondo (con distancia al origen), o lo que esté armado: fijar el nivel de hoy o pedir un perfil.
+function privLayerAt(ll){for(const l of privLayers){const f=privFrac(l,ll);if(!f)continue;const z=privSample(l,f[0],f[1]);if(z!==null)return {l,z};}return null;}
+function privTap(ll){if(!privUi.on||screen!=='map'||!map||!privLayers.length)return false;
+ if(privArm?.kind==='profile'){const o=aimOrigin();if(!o){toast('Para el perfil hace falta tu posición GPS o el puesto marcado.',true);privArm=null;return true;}privArm=null;privProfileOpen(o.coords,ll,o.label);return true;}
+ const hit=privLayerAt(ll);
+ if(privArm?.kind==='level'){privArm=null;if(!hit){toast('Toca dentro de la capa, justo en el borde del agua de hoy.',true);return true;}const l=hit.l;l.level=Math.round(hit.z*10)/10;privPut(l).catch(()=>{});privForget(l.id);renderPriv();map.render(false);toast(`Nivel de hoy fijado: la orilla está en la curva de ${privFmt(l.level)} m de la carta. Desde ahora todo se muestra como fondo de hoy.`);return true;}
+ if(typeof WCC!=='undefined'&&WCC?.pegs){const p=map.project(ll);for(const q of WCC.pegs){const r=map.project([q[2],q[3]]);if(Math.hypot(r[0]-p[0],r[1]-p[1])<22)return false;}}
+ if(!hit)return false;const {l,z}=hit,o=aimOrigin();let t=`Fondo ${privFmtToday(l,z)}`;if(privLevel(l))t+=` · carta ${privFmt(z)} m`;
+ if(o){const d=distance(o.coords,ll),b=bearing(o.coords,ll);t+=` · a ${fmtDist(d)} (${fmtWraps(d)}) rumbo ${Math.round(b)}° ${cardinal(b)} ${o.label}`;}
+ toast(t);return true;}
 function privFocus(l){if(!map)return;showMap();const [W,S,E,N]=l.bounds;map.fit([[W,S],[E,N]],0,0,64);map.render(false);}
+function privArmMode(kind,l){privArm={kind,id:l.id};showMap();toast(kind==='level'?'Toca en el mapa el borde del agua de hoy, dentro de la capa. Así se sabe cuánto ha bajado o subido el embalse respecto a la carta.':`Toca en el mapa hasta dónde quieres el perfil del fondo (${aimOrigin()?.label||'marca antes el puesto o activa el GPS'}).`);}
 function renderPriv(){const list=$('privList');if(!list)return;$('privOn').checked=privUi.on;$('privOpacity').value=privUi.opacity;$('privOpVal').textContent=`${privUi.opacity} %`;
- list.innerHTML=privLayers.length?`<ul class="priv-list">${privLayers.map(l=>`<li><div><b>${esc(l.name)}</b><small>${l.w}×${l.h} celdas de ${privFmt(privCellM(l))} m · fondo hasta ${privFmt(l.zmax)} m · importada ${esc(dayName(Date.parse(l.at)))}</small>${l.source?`<small>${esc(l.source)}</small>`:''}</div><div class="team-acts"><button type="button" data-priv-view="${l.id}">Ver</button><button type="button" data-priv-three="${l.id}">3D</button><button type="button" data-priv-del="${l.id}">Borrar</button></div></li>`).join('')}</ul>`:'<p class="tiny">Sin capas. Importa un archivo «cfn-capa» que te hayas preparado.</p>';}
-// Vista 3D: la rejilla, reducida a unas 110 columnas y en metros reales, pintada de atrás adelante en un lienzo; se gira con el dedo.
-function priv3dOpen(l){const step=Math.max(1,Math.ceil(l.w/110)),w=Math.floor(l.w/step),h=Math.floor(l.h/step),Z=new Float32Array(w*h),L=new Uint8Array(w*h),cell=privCellM(l)*step;
- for(let j=0;j<h;j++)for(let i=0;i<w;i++){let sum=0,n=0,land=0;for(let dj=0;dj<step;dj++)for(let di=0;di<step;di++){const k=(j*step+dj)*l.w+i*step+di;if(privLand(l,k))land++;else if(l.z[k]!==PRIV_NONE){sum+=l.z[k]/10;n++;}}Z[j*w+i]=n?sum/n:0;L[j*w+i]=land>=step*step/2||!n?1:0;}
- p3={l,w,h,Z,L,cell,az:-125,el:48,zoom:1,ex:3,scale:privScale(l)};$('priv3dTitle').textContent=`${l.name} · 3D`;$('priv3dSource').textContent=l.source;$('priv3dEx').value=3;$('priv3dExVal').textContent='×3';$('privDialog').showModal();requestAnimationFrame(priv3dSize);}
+ list.innerHTML=privLayers.length?`<ul class="priv-list">${privLayers.map(l=>`<li><div><b>${esc(l.name)}</b><small>${l.w}×${l.h} celdas de ${privFmt(privCellM(l))} m · fondo hasta ${privFmt(l.zmax)} m · importada ${esc(dayName(Date.parse(l.at)))}</small><small>${privLevel(l)?`Nivel de hoy: la orilla está en la curva de ${privFmt(privLevel(l))} m de la carta; todo se muestra como fondo de hoy.`:'Nivel de hoy sin fijar: se muestran las profundidades tal cual vienen en la capa.'}</small>${l.source?`<small>${esc(l.source)}</small>`:''}</div><div class="team-acts"><button type="button" data-priv-view="${l.id}">Ver</button><button type="button" data-priv-three="${l.id}">3D</button><button type="button" data-priv-level="${l.id}">Nivel de hoy</button><button type="button" data-priv-profile="${l.id}">Perfil</button>${privLevel(l)?`<button type="button" class="ghost" data-priv-unlevel="${l.id}">Quitar nivel</button>`:''}<button type="button" data-priv-del="${l.id}">Borrar</button></div></li>`).join('')}</ul>`:'<p class="tiny">Sin capas. Importa un archivo «cfn-capa» que te hayas preparado.</p>';}
+// Perfil del fondo entre dos puntos: muestras cada ~2 m, en fondo de hoy; huecos donde no hay dato.
+function privProfile(a,b){const d=distance(a,b),n=Math.max(2,Math.min(600,Math.round(d/2))),out={d:[],z:[],len:d,level:0};let l0=null;
+ for(let i=0;i<=n;i++){const t=i/n,ll=[a[0]+(b[0]-a[0])*t,a[1]+(b[1]-a[1])*t],hit=privLayerAt(ll);out.d.push(d*t);out.z.push(hit?privToday(hit.l,hit.z):null);if(hit&&!l0)l0=hit.l;}
+ if(l0)out.level=privLevel(l0);return out;}
+function privProfileOpen(a,b,label){const p=privProfile(a,b);if(!p.z.some(v=>v!==null)){toast('El perfil no pasa por ninguna capa propia.',true);return;}
+ const W=340,H=150,zs=p.z.filter(v=>v!==null),zmax=Math.max(1,...zs),X=i=>10+p.d[i]/(p.len||1)*(W-20),Y=z=>22+Math.max(0,z)/zmax*(H-44);let path='',pen=false;
+ for(let i=0;i<p.z.length;i++){const z=p.z[i];if(z===null){pen=false;continue;}path+=`${pen?'L':'M'}${X(i).toFixed(1)},${Y(z).toFixed(1)}`;pen=true;}
+ let area='';{let seg=[];const flush=()=>{if(seg.length>1)area+=`M${X(seg[0]).toFixed(1)},22 `+seg.map(i=>`L${X(i).toFixed(1)},${Y(p.z[i]).toFixed(1)}`).join(' ')+` L${X(seg[seg.length-1]).toFixed(1)},22Z `;seg=[];};for(let i=0;i<p.z.length;i++){if(p.z[i]===null)flush();else seg.push(i);}flush();}
+ const im=zs.indexOf(Math.max(...zs)),imax=p.z.indexOf(zs[im]);let drop=null;for(let i=0;i<p.z.length;i++){const j=Math.min(p.z.length-1,i+Math.round(10/(p.len/(p.z.length-1))));if(p.z[i]===null||p.z[j]===null)continue;const g=p.z[j]-p.z[i];if(!drop||g>drop.g)drop={g,i,j};}
+ const ticks=[];for(let m=0;m<=p.len;m+=p.len>400?100:p.len>150?50:25)ticks.push(`<text x="${(10+m/(p.len||1)*(W-20)).toFixed(1)}" y="${H-6}" class="wx-tick" text-anchor="middle">${m}</text>`);
+ $('privProfile').innerHTML=`<svg viewBox="0 0 ${W} ${H}" class="priv-chart" role="img" aria-label="Perfil del fondo"><path d="${area}" fill="#2a5d8a" fill-opacity=".5"/><path d="${path}" fill="none" stroke="#9bd4ff" stroke-width="1.8" stroke-linejoin="round"/><line x1="10" y1="22" x2="${W-10}" y2="22" stroke="#9fdcff" stroke-width="1" stroke-dasharray="4 3"/><text x="12" y="16" class="wx-tick">agua</text><text x="${W-10}" y="16" text-anchor="end" class="wx-tick">metros ${esc(label)} · máx ${privFmt(zmax)} m</text>${ticks.join('')}</svg>`;
+ const txt=[`Hasta ${fmtDist(p.len)} (${fmtWraps(p.len)}). Fondo máximo ${privFmt(zmax)} m a ${fmtDist(p.d[imax])}.`];if(drop&&drop.g>=1.5)txt.push(`Talud más marcado entre ${fmtDist(p.d[drop.i])} y ${fmtDist(p.d[drop.j])}: baja ${privFmt(drop.g)} m.`);if(p.z[p.z.length-1]!==null)txt.push(`En el punto final, ${privFmt(Math.max(0,p.z[p.z.length-1]))} m.`);if(!p.level)txt.push('Nivel de hoy sin fijar: son las profundidades de la capa tal cual.');
+ $('privProfileText').textContent=txt.join(' ');privLine={a,b};map?.render(false);$('privProfileDialog').showModal();}
+// ---- Vista 3D. WebGL si lo hay (sombreado suave, curvas, lámina de agua a la cota de hoy, tus puntos); si no, el lienzo 2D.
+const P3_VS=`attribute vec2 aXY;attribute float aD;attribute vec2 aG;attribute float aLand;uniform mat4 uMVP;uniform float uEx,uLevel;varying float vD,vLand;varying vec3 vN;
+void main(){float d=aD-uLevel;gl_Position=uMVP*vec4(aXY,-d*uEx,1.0);vD=d;vLand=aLand;vN=normalize(vec3(aG.x*uEx,aG.y*uEx,1.0));}`;
+const P3_FS=`#ifdef GL_OES_standard_derivatives
+#extension GL_OES_standard_derivatives : enable
+#endif
+precision mediump float;varying float vD,vLand;varying vec3 vN;uniform vec3 uLight;uniform float uDeriv;
+vec3 ramp(float d){vec3 c0=vec3(.874,.957,1.);vec3 c1=vec3(.651,.871,.973);vec3 c2=vec3(.373,.702,.91);vec3 c3=vec3(.176,.498,.776);vec3 c4=vec3(.106,.345,.627);vec3 c5=vec3(.059,.227,.471);vec3 c6=vec3(.031,.149,.318);
+ if(d<2.)return mix(c0,c1,d/2.);if(d<5.)return mix(c1,c2,(d-2.)/3.);if(d<10.)return mix(c2,c3,(d-5.)/5.);if(d<15.)return mix(c3,c4,(d-10.)/5.);if(d<20.)return mix(c4,c5,(d-15.)/5.);return mix(c5,c6,clamp((d-20.)/6.,0.,1.));}
+void main(){float lam=max(0.,dot(normalize(vN),normalize(uLight)));float sh=.42+.62*lam;bool dry=vLand>.5||vD<=0.;vec3 c=dry?vec3(.86,.80,.56):ramp(vD);
+ if(!dry&&uDeriv>.5){
+#ifdef GL_OES_standard_derivatives
+ float fw=max(fwidth(vD),1e-4);float d1=abs(fract(vD)-.5);float a1=smoothstep(.5-1.6*fw,.5-.4*fw,d1);float d5=abs(fract(vD/5.)-.5);float a5=smoothstep(.5-1.6*fw/5.,.5-.4*fw/5.,d5);c=mix(c,vec3(1.),clamp(a1*.22+a5*.3,0.,.5));
+#endif
+ }
+ gl_FragColor=vec4(c*sh,1.);}`;
+const P3_WVS=`attribute vec2 aXY;uniform mat4 uMVP;void main(){gl_Position=uMVP*vec4(aXY,0.0,1.0);}`,P3_WFS=`precision mediump float;uniform vec4 uColor;void main(){gl_FragColor=uColor;}`;
+const P3_LVS=`attribute vec3 aP;uniform mat4 uMVP;uniform float uEx;void main(){gl_Position=uMVP*vec4(aP.x,aP.y,-aP.z*uEx,1.0);}`;
+function m4mul(a,b){const o=new Float32Array(16);for(let i=0;i<4;i++)for(let j=0;j<4;j++)o[j*4+i]=a[i]*b[j*4]+a[4+i]*b[j*4+1]+a[8+i]*b[j*4+2]+a[12+i]*b[j*4+3];return o;}
+function m4persp(fov,asp,n,f){const t=1/Math.tan(fov/2);return new Float32Array([t/asp,0,0,0,0,t,0,0,0,0,(f+n)/(n-f),-1,0,0,2*f*n/(n-f),0]);}
+function m4look(e,c,up){const z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]],zl=Math.hypot(...z);z[0]/=zl;z[1]/=zl;z[2]/=zl;const x=[up[1]*z[2]-up[2]*z[1],up[2]*z[0]-up[0]*z[2],up[0]*z[1]-up[1]*z[0]],xl=Math.hypot(...x)||1;x[0]/=xl;x[1]/=xl;x[2]/=xl;const y=[z[1]*x[2]-z[2]*x[1],z[2]*x[0]-z[0]*x[2],z[0]*x[1]-z[1]*x[0]];
+ return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1]);}
+function p3Shader(gl,vs,fs){const mk=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s)||'shader');return s;};const p=gl.createProgram();gl.attachShader(p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p)||'program');return p;}
+// Malla: rejilla suavizada (3×3 dos veces) en metros, con el gradiente por vértice para las normales; tus puntos y el puesto como mástiles.
+function p3Mesh(l,gl){const g0=privGrid(l),w0=l.w,h0=l.h,step=Math.max(1,Math.ceil(Math.max(w0,h0)/330)),w=Math.floor(w0/step),h=Math.floor(h0/step),cell=privCellM(l)*step,n=w*h;
+ const D=new Float32Array(n),LAND=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const v=g0[(j*step)*w0+i*step];const k=j*w+i;if(isNaN(v)){LAND[k]=1;D[k]=0;}else D[k]=v;}
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(LAND[j*w+i]){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=w||jj>=h)continue;const k=jj*w+ii;if(!LAND[k]){s+=D[k];c++;}}D[j*w+i]=c?s/c*.5:0;}
+ let S=D;for(let pass=0;pass<2;pass++){const T=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=clamp(i+di,0,w-1),jj=clamp(j+dj,0,h-1),k=jj*w+ii;if(LAND[k]===LAND[j*w+i]){s+=S[k];c++;}}T[j*w+i]=s/c;}S=T;}
+ const V=new Float32Array(n*6);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,o=k*6,zl=S[j*w+Math.max(0,i-1)],zr=S[j*w+Math.min(w-1,i+1)],zu=S[Math.max(0,j-1)*w+i],zd=S[Math.min(h-1,j+1)*w+i];V[o]=i*cell;V[o+1]=-j*cell;V[o+2]=S[k];V[o+3]=(zr-zl)/(2*cell);V[o+4]=-(zd-zu)/(2*cell);V[o+5]=LAND[k];}
+ const big=!!gl.getExtension('OES_element_index_uint'),I=big?new Uint32Array((w-1)*(h-1)*6):null;if(!big&&n>65535)return null;const I16=big?null:new Uint16Array((w-1)*(h-1)*6),IX=I||I16;let m=0;
+ for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i;IX[m++]=k;IX[m++]=k+w;IX[m++]=k+1;IX[m++]=k+1;IX[m++]=k+w;IX[m++]=k+w+1;}
+ const poles=[];const add=(ll,col,name)=>{const f=privFrac(l,ll);if(!f)return;const i=f[0]/step,j=f[1]/step,z=privSample(l,f[0],f[1]);if(z===null)return;poles.push({x:i*cell,y:-j*cell,z,col,name});};
+ for(const f of state.features)if(f.geometry.type==='Point'){const k=f.properties.kind;add(f.geometry.coordinates,k==='camp'?'#e2c587':'#ffd166',f.properties.name);}
+ if(gps)add(gps.coords,'#77bfff','Tú');
+ return {w,h,cell,V,IX,big,poles,W:(w-1)*cell,H:(h-1)*cell};}
+function priv3dOpen(l){const c=$('priv3d');if(!p3?.gl&&p3?.mode!=='2d'){let gl=null;try{gl=c.getContext('webgl',{antialias:true,alpha:false,preserveDrawingBuffer:true})||c.getContext('experimental-webgl');}catch{}
+  if(gl){try{const deriv=!!gl.getExtension('OES_standard_derivatives');const prog=p3Shader(gl,P3_VS,P3_FS),wprog=p3Shader(gl,P3_WVS,P3_WFS),lprog=p3Shader(gl,P3_LVS,P3_WFS);p3={mode:'gl',gl,prog,wprog,lprog,deriv,frames:0};}catch(e){p3={mode:'2d',frames:0};}}else p3={mode:'2d',frames:0};}
+ else p3={...p3,frames:0};
+ const mesh=p3.mode==='gl'?p3Mesh(l,p3.gl):null;if(p3.mode==='gl'&&!mesh)p3={mode:'2d',frames:0};
+ Object.assign(p3,{l,mesh,az:-125,el:48,zoom:1,ex:3,level:privLevel(l),scale:Math.max(10,Math.ceil(l.zmax/5)*5)});
+ if(p3.mode==='gl'){const gl=p3.gl;p3.vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.vbo);gl.bufferData(gl.ARRAY_BUFFER,mesh.V,gl.STATIC_DRAW);p3.ibo=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p3.ibo);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.IX,gl.STATIC_DRAW);
+  p3.wbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.wbo);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,mesh.W,0,0,-mesh.H,mesh.W,-mesh.H]),gl.STATIC_DRAW);
+  const P=[];for(const q of mesh.poles)P.push(q.x,q.y,0,q.x,q.y,q.z);p3.pbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.pbo);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(P),gl.STATIC_DRAW);}
+ else{const step=Math.max(1,Math.ceil(l.w/110)),w=Math.floor(l.w/step),h=Math.floor(l.h/step),Z=new Float32Array(w*h),L=new Uint8Array(w*h),g=privGrid(l);
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){let sum=0,n=0,land=0;for(let dj=0;dj<step;dj++)for(let di=0;di<step;di++){const v=g[(j*step+dj)*l.w+i*step+di];if(isNaN(v))land++;else{sum+=v;n++;}}Z[j*w+i]=n?sum/n:0;L[j*w+i]=land>=step*step/2||!n?1:0;}
+  Object.assign(p3,{w,h,Z,L,cell:privCellM(l)*step});}
+ $('priv3dTitle').textContent=`${l.name} · 3D`;$('priv3dSource').textContent=l.source;$('priv3dEx').value=3;$('priv3dExVal').textContent='×3';
+ $('priv3dLevel').textContent=privLevel(l)?`Lámina de agua a la cota de hoy (orilla en la curva de ${privFmt(privLevel(l))} m de la carta); lo que asoma en color arena está en seco.`:'Nivel de hoy sin fijar: la lámina de agua está a la referencia de la capa.';
+ $('privDialog').showModal();requestAnimationFrame(priv3dSize);}
 function priv3dSize(){const c=$('priv3d');if(!c||!p3)return;const r=devicePixelRatio||1,w=Math.round(c.clientWidth*r),h=Math.round(c.clientHeight*r);if(w&&h&&(c.width!==w||c.height!==h)){c.width=w;c.height=h;}priv3dDraw();}
 function priv3dQueue(){if(p3Frame)return;p3Frame=requestAnimationFrame(()=>{p3Frame=null;priv3dDraw();});}
-function priv3dDraw(){if(!p3)return;const c=$('priv3d'),ctx=c.getContext('2d'),cw=c.width,ch=c.height,{w,h,Z,L,cell,ex,scale}=p3;if(!cw||!ch)return;ctx.fillStyle='#0b1118';ctx.fillRect(0,0,cw,ch);
+function priv3dDraw(){if(!p3)return;p3.frames++;if(p3.mode==='gl')priv3dDrawGl();else priv3dDraw2d();const n=$('priv3dNorth');if(n)n.style.transform=`rotate(${(-p3.az-90).toFixed(0)}deg)`;}
+function priv3dCamera(){const c=$('priv3d'),{mesh}=p3,cw=c.width,ch=c.height,a=p3.az*DEG,e=p3.el*DEG,ext=Math.hypot(mesh.W,mesh.H),dist=ext*1.15/p3.zoom,cx=mesh.W/2,cy=-mesh.H/2;
+ const eye=[cx+dist*Math.cos(e)*Math.sin(a),cy-dist*Math.cos(e)*Math.cos(a),dist*Math.sin(e)],mvp=m4mul(m4persp(42*DEG,cw/ch,dist*.05,dist*6),m4look(eye,[cx,cy,-p3.ex*p3.scale*.25],[0,0,1]));return {mvp,cw,ch};}
+function priv3dDrawGl(){const {gl,prog,wprog,lprog,mesh}=p3,c=$('priv3d'),{mvp,cw,ch}=priv3dCamera();gl.viewport(0,0,cw,ch);gl.clearColor(.043,.067,.094,1);gl.enable(gl.DEPTH_TEST);gl.disable(gl.BLEND);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
+ gl.useProgram(prog);gl.bindBuffer(gl.ARRAY_BUFFER,p3.vbo);const st=24,at=(nm,sz,off)=>{const a=gl.getAttribLocation(prog,nm);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,sz,gl.FLOAT,false,st,off);};at('aXY',2,0);at('aD',1,8);at('aG',2,12);at('aLand',1,20);
+ gl.uniformMatrix4fv(gl.getUniformLocation(prog,'uMVP'),false,mvp);gl.uniform1f(gl.getUniformLocation(prog,'uEx'),p3.ex);gl.uniform1f(gl.getUniformLocation(prog,'uLevel'),p3.level);gl.uniform3f(gl.getUniformLocation(prog,'uLight'),-.5,.6,.62);gl.uniform1f(gl.getUniformLocation(prog,'uDeriv'),p3.deriv?1:0);
+ gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p3.ibo);gl.drawElements(gl.TRIANGLES,mesh.IX.length,mesh.big?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,0);
+ for(const nm of ['aXY','aD','aG','aLand'])gl.disableVertexAttribArray(gl.getAttribLocation(prog,nm));
+ if(mesh.poles.length){gl.useProgram(lprog);gl.bindBuffer(gl.ARRAY_BUFFER,p3.pbo);const a=gl.getAttribLocation(lprog,'aP');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,0,0);gl.uniformMatrix4fv(gl.getUniformLocation(lprog,'uMVP'),false,mvp);gl.uniform1f(gl.getUniformLocation(lprog,'uEx'),p3.ex);gl.uniform4f(gl.getUniformLocation(lprog,'uColor'),1,.84,.4,1);gl.lineWidth(2);gl.drawArrays(gl.LINES,0,mesh.poles.length*2);gl.disableVertexAttribArray(a);}
+ gl.useProgram(wprog);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.bindBuffer(gl.ARRAY_BUFFER,p3.wbo);const aw=gl.getAttribLocation(wprog,'aXY');gl.enableVertexAttribArray(aw);gl.vertexAttribPointer(aw,2,gl.FLOAT,false,0,0);gl.uniformMatrix4fv(gl.getUniformLocation(wprog,'uMVP'),false,mvp);gl.uniform4f(gl.getUniformLocation(wprog,'uColor'),.35,.65,.95,.26);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);gl.disableVertexAttribArray(aw);gl.depthMask(true);gl.disable(gl.BLEND);
+ // etiquetas HTML de los mástiles
+ const box=$('priv3dLabels');if(box){let html='';for(const q of mesh.poles){const v=[q.x,q.y,0,1],o=[0,0,0,0];for(let i=0;i<4;i++)o[i]=mvp[i]*v[0]+mvp[4+i]*v[1]+mvp[8+i]*v[2]+mvp[12+i]*v[3];if(o[3]<=0)continue;const x=(o[0]/o[3]*.5+.5)*c.clientWidth,y=(.5-o[1]/o[3]*.5)*c.clientHeight;if(x<0||x>c.clientWidth||y<0||y>c.clientHeight)continue;const t=q.z-p3.level;html+=`<span style="left:${x.toFixed(0)}px;top:${y.toFixed(0)}px;color:${q.col}">${esc(q.name)} · ${t<=0?'seco':privFmt(t)+' m'}</span>`;}box.innerHTML=html;}}
+function priv3dDraw2d(){const c=$('priv3d'),ctx=c.getContext('2d'),cw=c.width,ch=c.height,{w,h,Z,L,cell,ex,scale}=p3;if(!cw||!ch)return;ctx.fillStyle='#0b1118';ctx.fillRect(0,0,cw,ch);const lev=p3.level;
  const a=p3.az*DEG,e=p3.el*DEG,ca=Math.cos(a),sa=Math.sin(a),ce=Math.cos(e),se=Math.sin(e),ext=Math.hypot(w,h)*cell,sc=p3.zoom*Math.min(cw/(ext*1.02),ch/(ext*0.9)),cx=cw/2,cy=ch*0.47,n=w*h,X=new Float32Array(n),Y=new Float32Array(n),nq=(w-1)*(h-1),K=new Float32Array(nq),idx=new Int32Array(nq);
- for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,x=(i-w/2)*cell,y=(j-h/2)*cell,z=-Z[k]*ex,xr=x*ca-y*sa,yr=x*sa+y*ca;X[k]=cx+xr*sc;Y[k]=cy+(yr*se-z*ce)*sc;}
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,x=(i-w/2)*cell,y=(j-h/2)*cell,z=-(Z[k]-lev)*ex,xr=x*ca-y*sa,yr=x*sa+y*ca;X[k]=cx+xr*sc;Y[k]=cy+(yr*se-z*ce)*sc;}
  let m=0;for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i,x=(i+.5-w/2)*cell,y=(j+.5-h/2)*cell,z=-(Z[k]+Z[k+1]+Z[k+w]+Z[k+w+1])/4*ex;K[m]=(x*sa+y*ca)*ce+z*se;idx[m]=k;m++;}
  const ord=Array.from(idx.keys()).sort((p,q)=>K[p]-K[q]);
- for(const o of ord){const k=idx[o],k2=k+1,k3=k+w,k4=k+w+1,land=L[k]&&L[k2]&&L[k3]&&L[k4],gx=((Z[k2]-Z[k])+(Z[k4]-Z[k3]))/2*ex/cell,gy=((Z[k3]-Z[k])+(Z[k4]-Z[k2]))/2*ex/cell,sh=privShade(gx,gy);
-  if(land)ctx.fillStyle=`rgb(${(224*sh)|0},${(206*sh)|0},${(120*sh)|0})`;else{const [r,g,b]=privRgb((Z[k]+Z[k2]+Z[k3]+Z[k4])/4,scale,sh,false);ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`;}
-  ctx.beginPath();ctx.moveTo(X[k],Y[k]);ctx.lineTo(X[k2],Y[k2]);ctx.lineTo(X[k4],Y[k4]);ctx.lineTo(X[k3],Y[k3]);ctx.closePath();ctx.fill();ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=.6;ctx.stroke();}}
+ for(const o of ord){const k=idx[o],k2=k+1,k3=k+w,k4=k+w+1,t=(Z[k]+Z[k2]+Z[k3]+Z[k4])/4-lev,land=(L[k]&&L[k2]&&L[k3]&&L[k4])||t<=0,gx=((Z[k2]-Z[k])+(Z[k4]-Z[k3]))/2*ex/cell,gy=((Z[k3]-Z[k])+(Z[k4]-Z[k2]))/2*ex/cell,sh=privShade(gx,gy);
+  if(land)ctx.fillStyle=`rgb(${(220*sh)|0},${(204*sh)|0},${(143*sh)|0})`;else{const [r,g,b]=privColor(t);ctx.fillStyle=`rgb(${(r*sh)|0},${(g*sh)|0},${(b*sh)|0})`;}
+  ctx.beginPath();ctx.moveTo(X[k],Y[k]);ctx.lineTo(X[k2],Y[k2]);ctx.lineTo(X[k4],Y[k4]);ctx.lineTo(X[k3],Y[k3]);ctx.closePath();ctx.fill();ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=.6;ctx.stroke();}
+ const box=$('priv3dLabels');if(box)box.innerHTML='';}
 function wirePriv3d(){const c=$('priv3d');if(!c)return;let drag=null,pinch=null;const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
  c.addEventListener('pointerdown',e=>{if(!p3)return;c.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,id:e.pointerId};});
  c.addEventListener('pointermove',e=>{if(!p3||!drag||e.pointerId!==drag.id||pinch)return;p3.az+=(e.clientX-drag.x)*.5;p3.el=clamp(p3.el+(e.clientY-drag.y)*.3,8,85);drag.x=e.clientX;drag.y=e.clientY;priv3dQueue();});
@@ -1124,19 +1247,27 @@ function wirePriv3d(){const c=$('priv3d');if(!c)return;let drag=null,pinch=null;
  c.addEventListener('wheel',e=>{if(!p3)return;p3.zoom=clamp(p3.zoom*(e.deltaY<0?1.1:.9),.5,4);priv3dQueue();},{passive:true});
  $('priv3dEx').oninput=e=>{if(!p3)return;p3.ex=+e.target.value;$('priv3dExVal').textContent=`×${p3.ex}`;priv3dQueue();};
  $('priv3dReset').onclick=()=>{if(!p3)return;Object.assign(p3,{az:-125,el:48,zoom:1});priv3dQueue();};
- $('privDialog').addEventListener('close',()=>{p3=null;});addEventListener('resize',()=>{if(p3&&$('privDialog').open)priv3dSize();});}
-function wirePriv(){if(!$('privSection'))return;try{const u=JSON.parse(localStorage.getItem(PRIV_UI)||'null');if(u&&typeof u==='object')privUi={on:u.on!==false,opacity:clamp(+u.opacity||80,20,100)};}catch{}
+ $('privDialog').addEventListener('close',()=>{if(p3?.mode==='gl'){const gl=p3.gl;for(const b of [p3.vbo,p3.ibo,p3.wbo,p3.pbo])if(b)gl.deleteBuffer(b);p3={mode:'gl',gl,prog:p3.prog,wprog:p3.wprog,lprog:p3.lprog,deriv:p3.deriv,frames:0,l:null};}else if(p3)p3={mode:'2d',frames:0,l:null};const box=$('priv3dLabels');if(box)box.innerHTML='';});
+ addEventListener('resize',()=>{if(p3?.l&&$('privDialog').open)priv3dSize();});
+ $('privProfileDialog')?.addEventListener('close',()=>{privLine=null;map?.render(false);});}
+function wirePriv(){if(!$('privSection'))return;try{const u=JSON.parse(localStorage.getItem(PRIV_UI)||'null');if(u&&typeof u==='object')privUi={on:u.on!==false,opacity:clamp(+u.opacity||85,20,100)};}catch{}
  $('privOn').onchange=e=>{privUi.on=e.target.checked;privSave();map?.render(false);};
  $('privOpacity').oninput=e=>{privUi.opacity=+e.target.value;$('privOpVal').textContent=`${privUi.opacity} %`;privSave();map?.render(false);};
  $('privImport').onclick=()=>$('privIn').click();
- $('privIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>12*1024*1024){toast('La capa supera 12 MB.',true);return;}try{const l=privParse(await f.text());await privPut(l);privLayers.push(l);privUi.on=true;privSave();renderPriv();privFocus(l);toast(`Capa «${l.name}» guardada en este móvil.`);}catch(err){toast(`No se pudo importar la capa: ${err.message||err}`,true);}};
- $('privList').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,l=privLayers.find(x=>x.id===(d.privView||d.privThree||d.privDel));if(!l)return;
+ $('privIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>12*1024*1024){toast('La capa supera 12 MB.',true);return;}try{const l=privParse(await f.text());await privPut(l);privLayers.push(l);privUi.on=true;privSave();renderPriv();privFocus(l);toast(`Capa «${l.name}» guardada en este móvil. Fija el nivel de hoy tocando la orilla para ver el fondo real.`);}catch(err){toast(`No se pudo importar la capa: ${err.message||err}`,true);}};
+ $('privList').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,id=d.privView||d.privThree||d.privLevel||d.privProfile||d.privUnlevel||d.privDel,l=privLayers.find(x=>x.id===id);if(!l)return;
   if(d.privView){privUi.on=true;privSave();renderPriv();privFocus(l);}
   else if(d.privThree)priv3dOpen(l);
+  else if(d.privLevel){privUi.on=true;privSave();privArmMode('level',l);}
+  else if(d.privProfile){privUi.on=true;privSave();privArmMode('profile',l);}
+  else if(d.privUnlevel){l.level=0;privPut(l).catch(()=>{});privForget(l.id);renderPriv();map?.render(false);}
   else if(d.privDel&&confirm('¿Borrar esta capa de este móvil? El archivo del que salió no se toca.')){privDel(l.id).then(()=>{privLayers=privLayers.filter(x=>x.id!==l.id);privForget(l.id);renderPriv();map?.render(false);}).catch(err=>toast(String(err.message||err),true));}};
  wirePriv3d();
- privAll().then(ls=>{privLayers=ls.map(l=>({...l,z:l.z instanceof Uint16Array?l.z:new Uint16Array(l.z),land:l.land?(l.land instanceof Uint8Array?l.land:new Uint8Array(l.land)):null}));renderPriv();map?.render(false);}).catch(err=>{$('privStatus').textContent=`Capas no disponibles: ${err.message||err}`;});}
+ privAll().then(ls=>{privLayers=ls.map(l=>({...l,level:+l.level||0,z:l.z instanceof Uint16Array?l.z:new Uint16Array(l.z),land:l.land?(l.land instanceof Uint8Array?l.land:new Uint8Array(l.land)):null}));renderPriv();map?.render(false);}).catch(err=>{$('privStatus').textContent=`Capas no disponibles: ${err.message||err}`;});}
+// Pista en la ficha de un punto: lo que dice la capa propia ahí (no rellena la profundidad medida, que es otra cosa).
+function privPointHint(coords){const el=$('pointLayerHint');if(!el)return;const hit=coords&&privLayers.length?privLayerAt(coords):null;el.hidden=!hit;if(hit)el.textContent=`La capa propia «${hit.l.name}» da aquí ${privFmtToday(hit.l,hit.z)}${privLevel(hit.l)?'':' (según la capa, sin nivel de hoy)'}. No es una medición.`;}
 // ==== fin Capa propia ====
+{const _op=openPoint;openPoint=function(id,c,kind='point'){_op(id,c,kind);privPointHint([num($('pointLng').value),num($('pointLat').value)]);};}
 // ==== Compartir con mi compañero ====
 // Cada móvil manda su última posición a una sala (código de 8 letras) en api/share y lee la de los demás.
 // Una web no recibe GPS en segundo plano. Con la pantalla apagada o en otra app, Android sigue mandando la última posición
@@ -1248,7 +1379,7 @@ async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new Rast
  updateBackupReminder();if(needsBackup())toast('Tienes puntos sin copia desde hace días. Pulsa «Guardar copia» y guárdala en Archivos o iCloud.');
  applySources();setTimeout(()=>{if(Object.values(slots).every(s=>!s.stats().loaded)){if(!alertDismissed){$('alertZoom').hidden=true;$('mapAlert').hidden=false;$('mapAlertText').textContent='La conexión está tardando o no está disponible. Comprueba Internet o revisa Más (⋯) › Conexión de los mapas.';}}},12000);
  // Read-only test surface. No synthetic map data is installed by the application.
- window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),tileQuery,tileKey,tileCache:()=>({off:tileCacheOff,slow:tileCacheSlow}),swVersion:()=>swVersion,openNotebook,nbChapter:()=>nbChapter,offZone:()=>offZone,photoCount:()=>photoKeys().then(k=>k.length),team:()=>team&&{room:team.room,me:team.me,name:team.name,until:team.until,rolling:!!team.rolling,err:team.err||'',sentAt:team.sentAt||0,members:teamMates().map(m=>({id:m.id,name:m.name,lost:!!m.lost,pos:Math.round(m.pos),coords:m.coords,age:Math.round(m.age)}))},wcc:()=>WCC&&{on:wcc.on,access:wcc.access,mine:wcc.mine,sel:wccSel?(wccSel.peg?.name||wccSel.item.name):null,route:wccRoute,pegs:WCC.pegs.length,zones:WCC.zones.filter(Boolean).length,gps:wccGpsText()?.t||null},reading:t=>readLines(t),water:()=>state.water.slice(),wccProg:t=>wccProgModel(t),priv:()=>({on:privUi.on,opacity:privUi.opacity,layers:privLayers.map(l=>({id:l.id,name:l.name,w:l.w,h:l.h,zmax:l.zmax,bounds:l.bounds,cell:privCellM(l)})),depthAt:ll=>privLayers.map(l=>privDepthAt(l,ll))}),wccZoneAt:c=>{const z=wccZoneAt(c);return z&&{area:z.area,peg:z.peg?.name||null};},down:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,Math.max(0,Math.round((s.downUntil||0)-performance.now()))])),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
+ window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),tileQuery,tileKey,tileCache:()=>({off:tileCacheOff,slow:tileCacheSlow}),swVersion:()=>swVersion,openNotebook,nbChapter:()=>nbChapter,offZone:()=>offZone,photoCount:()=>photoKeys().then(k=>k.length),team:()=>team&&{room:team.room,me:team.me,name:team.name,until:team.until,rolling:!!team.rolling,err:team.err||'',sentAt:team.sentAt||0,members:teamMates().map(m=>({id:m.id,name:m.name,lost:!!m.lost,pos:Math.round(m.pos),coords:m.coords,age:Math.round(m.age)}))},wcc:()=>WCC&&{on:wcc.on,access:wcc.access,mine:wcc.mine,sel:wccSel?(wccSel.peg?.name||wccSel.item.name):null,route:wccRoute,pegs:WCC.pegs.length,zones:WCC.zones.filter(Boolean).length,gps:wccGpsText()?.t||null},reading:t=>readLines(t),water:()=>state.water.slice(),wccProg:t=>wccProgModel(t),priv:()=>({on:privUi.on,opacity:privUi.opacity,arm:privArm?.kind||null,layers:privLayers.map(l=>({id:l.id,name:l.name,w:l.w,h:l.h,zmax:l.zmax,bounds:l.bounds,cell:privCellM(l),level:privLevel(l)})),depthAt:ll=>privLayers.map(l=>privDepthAt(l,ll)),setLevel:(id,v)=>{const l=privLayers.find(x=>x.id===id);if(!l)return false;l.level=+v||0;privForget(l.id);renderPriv();map?.render(false);return true;},contours:()=>document.querySelectorAll('#vectors path.priv-contour').length,profile:(a,b)=>privProfile(a,b),tap:ll=>privTap(ll),pointHint:ll=>{privPointHint(ll);const e=$('pointLayerHint');return e&&!e.hidden?e.textContent:null;},isolines:(id,step)=>{const l=privLayers.find(x=>x.id===id);return l?privContours(l,step).map(c=>({today:c.today,n:c.lines.length,len:c.lines.map(x=>x.length)})):null;},three:()=>p3?.l?{mode:p3.mode,frames:p3.frames,poles:p3.mesh?p3.mesh.poles.length:0}:null}),wccZoneAt:c=>{const z=wccZoneAt(c);return z&&{area:z.area,peg:z.peg?.name||null};},down:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,Math.max(0,Math.round((s.downUntil||0)-performance.now()))])),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
 }
 init().catch(e=>{console.error(e);$('welcomeText').textContent='La aplicación no ha podido iniciarse. Abre el archivo en un navegador actualizado.';$('mapWelcome').hidden=false;toast('Error de inicio: '+(e.message||'desconocido'),true);});
 })();
