@@ -198,7 +198,18 @@ def main():
                 assert prof['len'] > 300 and max(v for v in prof['z'] if v is not None) > 10 and prof['level'] == 2 and prof['cell'] > 0 and len(prof['land']) == len(prof['z']), f'profile wrong: {prof["len"]}'
                 feats = page.evaluate(f'window.OrellanaAtlas.priv().features([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
                 assert isinstance(feats, list) and all('k' in f and 'i' in f for f in feats), f'profile features wrong: {feats}'
+                # Perfil con dos capas: la otra capa se dibuja a lo largo de la misma línea (misma rejilla, sin nivel: 2 m de diferencia).
+                import json as _json
+                second = _json.loads(synthetic_layer_bytes()); second['name'] = 'Prueba B'
                 page.locator('[data-go="spots"]').click()
+                page.locator('#privIn').set_input_files({'name': 'pruebaB.json', 'mimeType': 'application/json', 'buffer': _json.dumps(second).encode()})
+                page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 2', timeout=15000)
+                extras = page.evaluate(f'window.OrellanaAtlas.priv().profileExtras([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
+                assert len(extras['others']) == 1 and extras['others'][0]['n'] > 10 and abs(abs(extras['others'][0]['diff']) - 2) < 0.05 and isinstance(extras['spots'], list) and isinstance(extras['rods'], list), f'profile comparison wrong: {extras}'
+                page.locator('[data-go="spots"]').click()
+                page.once('dialog', lambda d: d.accept())
+                page.locator('[data-priv-del]').nth(1).click()
+                page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 1', timeout=5000)
                 page.locator('[data-priv-three]').first.click()
                 page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300 && window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0", timeout=5000)
                 three = page.evaluate('window.OrellanaAtlas.priv().three()')
