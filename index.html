@@ -4418,12 +4418,12 @@ function m4look(e,c,up){const z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]],zl=Math.hypot(..
 function p3Shader(gl,vs,fs){const mk=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s)||'shader');return s;};const p=gl.createProgram();gl.attachShader(p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p)||'program');return p;}
 // Malla: rejilla suavizada (3×3 dos veces) en metros, con el gradiente por vértice para las normales; tus puntos y el puesto como mástiles.
 function p3Mesh(l,gl){const g0=privGrid(l),w0=l.w,h0=l.h,step=Math.max(1,Math.ceil(Math.max(w0,h0)/330)),w=Math.floor(w0/step),h=Math.floor(h0/step),cell=privCellM(l)*step,n=w*h;
- const D=new Float32Array(n),LAND=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const v=g0[(j*step)*w0+i*step];const k=j*w+i;if(isNaN(v)){LAND[k]=1;D[k]=0;}else D[k]=v;}
- for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(LAND[j*w+i]){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=w||jj>=h)continue;const k=jj*w+ii;if(!LAND[k]){s+=D[k];c++;}}D[j*w+i]=c?s/c*.5:0;}
+ const D=new Float32Array(n),LAND=new Float32Array(n),HOLE=new Uint8Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k0=(j*step)*w0+i*step,v=g0[k0];const k=j*w+i;if(isNaN(v)){if(privLand(l,k0)){LAND[k]=1;D[k]=0;}else{HOLE[k]=1;D[k]=0;}}else D[k]=v;}
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(LAND[j*w+i]||HOLE[j*w+i]){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=w||jj>=h)continue;const k=jj*w+ii;if(!LAND[k]){s+=D[k];c++;}}D[j*w+i]=c?s/c*.5:0;}
  let S=D;for(let pass=0;pass<2;pass++){const T=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=clamp(i+di,0,w-1),jj=clamp(j+dj,0,h-1),k=jj*w+ii;if(LAND[k]===LAND[j*w+i]){s+=S[k];c++;}}T[j*w+i]=s/c;}S=T;}
  const V=new Float32Array(n*7);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,o=k*7,zl=S[j*w+Math.max(0,i-1)],zr=S[j*w+Math.min(w-1,i+1)],zu=S[Math.max(0,j-1)*w+i],zd=S[Math.min(h-1,j+1)*w+i];V[o]=i*cell;V[o+1]=-j*cell;V[o+2]=S[k];V[o+3]=(zr-zl)/(2*cell);V[o+4]=-(zd-zu)/(2*cell);V[o+5]=LAND[k];V[o+6]=LAND[k]?0:clamp((zl+zr+zu+zd-4*S[k])/(cell*cell)*6,-.35,.35);}
- const big=!!gl.getExtension('OES_element_index_uint'),I=big?new Uint32Array((w-1)*(h-1)*6):null;if(!big&&n>65535)return null;const I16=big?null:new Uint16Array((w-1)*(h-1)*6),IX=I||I16;let m=0;
- for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i;IX[m++]=k;IX[m++]=k+w;IX[m++]=k+1;IX[m++]=k+1;IX[m++]=k+w;IX[m++]=k+w+1;}
+ const big=!!gl.getExtension('OES_element_index_uint');if(!big&&n>65535)return null;const IX0=big?new Uint32Array((w-1)*(h-1)*6):new Uint16Array((w-1)*(h-1)*6);let m=0;
+ for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i;if(HOLE[k]||HOLE[k+1]||HOLE[k+w]||HOLE[k+w+1])continue;IX0[m++]=k;IX0[m++]=k+w;IX0[m++]=k+1;IX0[m++]=k+1;IX0[m++]=k+w;IX0[m++]=k+w+1;}const IX=IX0.subarray(0,m);
  const poles=[];const add=(ll,col,name)=>{const f=privFrac(l,ll);if(!f)return;const i=f[0]/step,j=f[1]/step,z=privSample(l,f[0],f[1]);if(z===null)return;poles.push({x:i*cell,y:-j*cell,z,col,name});};
  for(const f of state.features)if(f.geometry.type==='Point'){const k=f.properties.kind;add(f.geometry.coordinates,k==='camp'?'#e2c587':'#ffd166',f.properties.name);}
  if(gps)add(gps.coords,'#77bfff','Tú');
@@ -4437,7 +4437,7 @@ function priv3dOpen(l){const c=$('priv3d');if(!p3?.gl&&p3?.mode!=='2d'){let gl=n
   p3.wbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.wbo);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,mesh.W,0,0,-mesh.H,mesh.W,-mesh.H]),gl.STATIC_DRAW);
   const P=[];for(const q of mesh.poles)P.push(q.x,q.y,0,q.x,q.y,q.z);p3.pbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.pbo);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(P),gl.STATIC_DRAW);}
  else{const step=Math.max(1,Math.ceil(l.w/110)),w=Math.floor(l.w/step),h=Math.floor(l.h/step),Z=new Float32Array(w*h),L=new Uint8Array(w*h),g=privGrid(l);
-  for(let j=0;j<h;j++)for(let i=0;i<w;i++){let sum=0,n=0,land=0;for(let dj=0;dj<step;dj++)for(let di=0;di<step;di++){const v=g[(j*step+dj)*l.w+i*step+di];if(isNaN(v))land++;else{sum+=v;n++;}}Z[j*w+i]=n?sum/n:0;L[j*w+i]=land>=step*step/2||!n?1:0;}
+  for(let j=0;j<h;j++)for(let i=0;i<w;i++){let sum=0,n=0,land=0;for(let dj=0;dj<step;dj++)for(let di=0;di<step;di++){const kk=(j*step+dj)*l.w+i*step+di,v=g[kk];if(isNaN(v)){if(privLand(l,kk))land++;}else{sum+=v;n++;}}Z[j*w+i]=n?sum/n:0;L[j*w+i]=land>=step*step/2?1:(!n?2:0);}
   Object.assign(p3,{w,h,Z,L,cell:privCellM(l)*step});}
  $('priv3dTitle').textContent=`${l.name} · 3D`;$('priv3dSource').textContent=l.source;$('priv3dEx').value=3;$('priv3dExVal').textContent='×3';
  $('priv3dLevel').textContent=privLevel(l)?`Lámina de agua a la cota de hoy (orilla en la curva de ${privFmt(privLevel(l))} m de la carta); lo que asoma en color arena está en seco.`:'Nivel de hoy sin fijar: la lámina de agua está a la referencia de la capa.';
@@ -4461,7 +4461,7 @@ function priv3dDraw2d(){const c=$('priv3d'),ctx=c.getContext('2d'),cw=c.width,ch
  for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,x=(i-w/2)*cell,y=(j-h/2)*cell,z=-(Z[k]-lev)*ex,xr=x*ca-y*sa,yr=x*sa+y*ca;X[k]=cx+xr*sc;Y[k]=cy+(yr*se-z*ce)*sc;}
  let m=0;for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i,x=(i+.5-w/2)*cell,y=(j+.5-h/2)*cell,z=-(Z[k]+Z[k+1]+Z[k+w]+Z[k+w+1])/4*ex;K[m]=(x*sa+y*ca)*ce+z*se;idx[m]=k;m++;}
  const ord=Array.from(idx.keys()).sort((p,q)=>K[p]-K[q]);
- for(const o of ord){const k=idx[o],k2=k+1,k3=k+w,k4=k+w+1,t=(Z[k]+Z[k2]+Z[k3]+Z[k4])/4-lev,land=(L[k]&&L[k2]&&L[k3]&&L[k4])||t<=0,gx=((Z[k2]-Z[k])+(Z[k4]-Z[k3]))/2*ex/cell,gy=((Z[k3]-Z[k])+(Z[k4]-Z[k2]))/2*ex/cell,sh=privShade(gx,gy);
+ for(const o of ord){const k=idx[o],k2=k+1,k3=k+w,k4=k+w+1;if(L[k]===2||L[k2]===2||L[k3]===2||L[k4]===2)continue;const t=(Z[k]+Z[k2]+Z[k3]+Z[k4])/4-lev,land=(L[k]&&L[k2]&&L[k3]&&L[k4])||t<=0,gx=((Z[k2]-Z[k])+(Z[k4]-Z[k3]))/2*ex/cell,gy=((Z[k3]-Z[k])+(Z[k4]-Z[k2]))/2*ex/cell,sh=privShade(gx,gy);
   if(land)ctx.fillStyle=`rgb(${(220*sh)|0},${(204*sh)|0},${(143*sh)|0})`;else{const [r,g,b]=privColor(t);ctx.fillStyle=`rgb(${(r*sh)|0},${(g*sh)|0},${(b*sh)|0})`;}
   ctx.beginPath();ctx.moveTo(X[k],Y[k]);ctx.lineTo(X[k2],Y[k2]);ctx.lineTo(X[k4],Y[k4]);ctx.lineTo(X[k3],Y[k3]);ctx.closePath();ctx.fill();ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=.6;ctx.stroke();}
  const box=$('priv3dLabels');if(box)box.innerHTML='';}
@@ -4483,7 +4483,7 @@ function wirePriv(){if(!$('privSection'))return;try{const u=JSON.parse(localStor
  $('privOn').onchange=e=>{privUi.on=e.target.checked;privSave();map?.render(false);};
  $('privOpacity').oninput=e=>{privUi.opacity=+e.target.value;$('privOpVal').textContent=`${privUi.opacity} %`;privSave();map?.render(false);};
  $('privImport').onclick=()=>$('privIn').click();
- $('privIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>12*1024*1024){toast('La capa supera 12 MB.',true);return;}try{const l=privParse(await f.text());await privPut(l);privLayers.push(l);privUi.on=true;privSave();renderPriv();privFocus(l);toast(`Capa «${l.name}» guardada en este móvil. Fija el nivel de hoy tocando la orilla para ver el fondo real.`);}catch(err){toast(`No se pudo importar la capa: ${err.message||err}`,true);}};
+ $('privIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>12*1024*1024){toast('La capa supera 12 MB.',true);return;}try{const l=privParse(await f.text()),prev=privLayers.find(x=>x.name===l.name);if(prev){l.level=privLevel(prev);await privDel(prev.id);privForget(prev.id);privLayers=privLayers.filter(x=>x.id!==prev.id);}await privPut(l);privLayers.push(l);privUi.on=true;privSave();renderPriv();privFocus(l);toast(prev?`Capa «${l.name}» sustituida por la nueva versión${l.level?', con su nivel de hoy':''}.`:`Capa «${l.name}» guardada en este móvil. Fija el nivel de hoy tocando la orilla para ver el fondo real.`);}catch(err){toast(`No se pudo importar la capa: ${err.message||err}`,true);}};
  $('privList').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,id=d.privView||d.privThree||d.privLevel||d.privProfile||d.privUnlevel||d.privDel,l=privLayers.find(x=>x.id===id);if(!l)return;
   if(d.privView){privUi.on=true;privSave();renderPriv();privFocus(l);}
   else if(d.privThree)priv3dOpen(l);
