@@ -144,16 +144,28 @@ def main():
                 priv = page.evaluate('window.OrellanaAtlas.priv()')
                 assert priv['layers'][0]['w'] == 40 and abs(priv['layers'][0]['zmax'] - 18) < 0.01, f'layer not parsed: {priv}'
                 assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'map', 'import did not show the map'
-                page.wait_for_function("document.querySelectorAll('#map svg image').length === 1", timeout=5000)
+                page.wait_for_function("window.OrellanaAtlas.priv().drawn().image === true", timeout=5000)
                 b = priv['layers'][0]['bounds']
                 z = page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.4}, {(b[1] + b[3]) / 2}])')[0]
                 assert z is not None and abs(z - 17.8) < 0.6, f'depth lookup: {z}'   # interpolated between the four nearest cells
                 assert page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.95}, {(b[1] + b[3]) / 2}])') == [None], 'land must have no depth'
                 page.evaluate(f'window.OrellanaAtlas.setView([{(b[0] + b[2]) / 2}, {(b[1] + b[3]) / 2}], 17)')
                 page.wait_for_function("window.OrellanaAtlas.priv().contours() > 5", timeout=5000)
-                assert page.locator('#vectors text.priv-z').count() >= 1, 'contour labels missing'
+                assert page.evaluate('window.OrellanaAtlas.priv().labels()') >= 1, 'contour labels missing'
                 assert page.evaluate('window.OrellanaAtlas.priv().relief') is True and page.evaluate('window.OrellanaAtlas.priv().setRelief(false)') is False and page.evaluate('window.OrellanaAtlas.priv().setRelief(true)') is True, 'relief toggle broken'
                 lid = priv['layers'][0]['id']
+                # Una capa más en «Capas»: elegir cuál se muestra y ponerla en la cortina del plano (el plano pasa a la derecha).
+                page.locator('#layersPill').click()
+                assert page.locator('#privLayerSection').is_visible() and page.locator('#privSelect option').count() == 1 and page.evaluate('window.OrellanaAtlas.priv().active') == lid, 'private layer missing from the layers sheet'
+                assert page.locator('[data-curtain="priv"]').is_visible() and page.evaluate('window.OrellanaAtlas.priv().inCurtain') is False, 'curtain choice missing'
+                page.locator('[data-curtain="priv"]').click()
+                clip = page.evaluate("document.getElementById('topoRaster').style.clipPath").replace('px', '')
+                assert page.evaluate('window.OrellanaAtlas.priv().inCurtain') is True and page.locator('#swipe').is_visible() and clip.startswith('inset(0 0 0 '), f'curtain with the private layer not applied: {clip}'
+                page.wait_for_function("document.getElementById('historicLabel').textContent.includes('Fondo propio')", timeout=3000)
+                assert page.evaluate(f'window.OrellanaAtlas.priv().setActive({lid!r})') is True and page.evaluate('window.OrellanaAtlas.priv().setActive("nope")') is False, 'active layer selection broken'
+                page.locator('[data-curtain="topo"]').click()
+                assert page.evaluate('window.OrellanaAtlas.priv().inCurtain') is False and page.evaluate("document.getElementById('topoRaster').style.clipPath").replace('px', '').startswith('inset(0 '), 'curtain did not go back to the plan'
+                page.locator('#layersClose').click()
                 assert page.evaluate(f'window.OrellanaAtlas.priv().setLevel({lid!r}, 2)') and page.evaluate('window.OrellanaAtlas.priv().layers[0].level') == 2, 'level not set'
                 prof = page.evaluate(f'window.OrellanaAtlas.priv().profile([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
                 assert prof['len'] > 300 and max(v for v in prof['z'] if v is not None) > 10 and prof['level'] == 2 and prof['cell'] > 0 and len(prof['land']) == len(prof['z']), f'profile wrong: {prof["len"]}'
