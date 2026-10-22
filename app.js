@@ -1064,7 +1064,7 @@ function wirePhotos(){if(!$('catchPhotoBtn'))return;photoKeys().then(k=>{for(con
 // debajo de las demás capas, con sus curvas de nivel encima. La app no sabe de dónde salen los datos: lo dice el campo «source».
 // «Nivel de hoy»: la rejilla trae profundidades a la referencia de quien la hizo; el usuario toca la orilla real y desde ahí
 // todo se muestra como fondo de hoy (lo que queda por encima del agua, en seco). Perfil: corte del fondo desde el puesto o el GPS.
-const PRIV_DB='orellana-atlas-private',PRIV_UI='orellana-atlas-private-ui',PRIV_NONE=65535,PRIV_STOPS=[[0,[223,244,255]],[2,[166,222,248]],[5,[95,179,232]],[10,[45,127,198]],[15,[27,88,160]],[20,[15,58,120]],[26,[8,38,81]]];
+const PRIV_DB='orellana-atlas-private',PRIV_UI='orellana-atlas-private-ui',PRIV_NONE=65535,PRIV_STOPS=[[0,[235,247,255]],[1,[189,235,250]],[2,[140,217,242]],[4,[84,189,224]],[6,[56,153,209]],[9,[41,120,189]],[12,[31,92,163]],[16,[23,66,135]],[20,[18,46,107]],[26,[13,28,77]]];
 let privDb=null,privLayers=[],privUi={on:true,opacity:85},privArm=null,privLine=null,p3=null,p3Frame=null;
 const privUrls=new Map(),privPending=new Set(),privGrids=new Map(),privCont=new Map();
 function privOpen(){if(privDb)return Promise.resolve(privDb);return new Promise((res,rej)=>{if(!('indexedDB' in window))return rej(Error('Este navegador no guarda capas.'));const r=indexedDB.open(PRIV_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('layers',{keyPath:'id'});r.onsuccess=()=>{privDb=r.result;res(privDb);};r.onerror=()=>rej(r.error||Error('No se pudo abrir el almacén de capas.'));});}
@@ -1087,7 +1087,8 @@ const privLand=(l,i)=>!!l.land&&((l.land[i>>3]>>(7-(i&7)))&1);
 const privCellM=l=>Math.max(0.1,(l.bounds[2]-l.bounds[0])*111320*Math.cos((l.bounds[1]+l.bounds[3])/2*DEG)/l.w);
 const privLevel=l=>+l.level||0;
 // Rejilla en metros (NaN en tierra y sin dato), una vez por capa.
-function privGrid(l){let g=privGrids.get(l.id);if(g)return g;g=new Float32Array(l.w*l.h);for(let k=0;k<g.length;k++)g[k]=privLand(l,k)||l.z[k]===PRIV_NONE?NaN:l.z[k]/10;privGrids.set(l.id,g);return g;}
+function privGrid(l){let g=privGrids.get(l.id);if(g)return g;const raw=new Float32Array(l.w*l.h);for(let k=0;k<raw.length;k++)raw[k]=privLand(l,k)||l.z[k]===PRIV_NONE?NaN:l.z[k]/10;
+ g=new Float32Array(raw.length);const w=l.w,h=l.h,K=[1,2,1,2,4,2,1,2,1];for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i;if(isNaN(raw[k])){g[k]=NaN;continue;}let s=0,n=0,q=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;q++;if(ii<0||jj<0||ii>=w||jj>=h)continue;const v=raw[jj*w+ii];if(isNaN(v))continue;s+=v*K[q-1];n+=K[q-1];}g[k]=n?s/n:raw[k];}privGrids.set(l.id,g);return g;}
 // Coordenadas continuas de rejilla de una posición (0..w, 0..h), o null fuera de la capa.
 function privFrac(l,ll){const [W,S,E,N]=l.bounds;if(ll[0]<W||ll[0]>E||ll[1]<S||ll[1]>N)return null;const a=xy(ll),tl=xy([W,N]),br=xy([E,S]);return [(a[0]-tl[0])/(br[0]-tl[0])*l.w,(a[1]-tl[1])/(br[1]-tl[1])*l.h];}
 function privLL(l,fx,fy){const [W,S,E,N]=l.bounds,tl=xy([W,N]),br=xy([E,S]);return lonlat([tl[0]+(br[0]-tl[0])*fx/l.w,tl[1]+(br[1]-tl[1])*fy/l.h]);}
@@ -1166,18 +1167,18 @@ function privProfileOpen(a,b,label){const p=privProfile(a,b);if(!p.z.some(v=>v!=
  const txt=[`Hasta ${fmtDist(p.len)} (${fmtWraps(p.len)}). Fondo máximo ${privFmt(zmax)} m a ${fmtDist(p.d[imax])}.`];if(drop&&drop.g>=1.5)txt.push(`Talud más marcado entre ${fmtDist(p.d[drop.i])} y ${fmtDist(p.d[drop.j])}: baja ${privFmt(drop.g)} m.`);if(p.z[p.z.length-1]!==null)txt.push(`En el punto final, ${privFmt(Math.max(0,p.z[p.z.length-1]))} m.`);if(!p.level)txt.push('Nivel de hoy sin fijar: son las profundidades de la capa tal cual.');
  $('privProfileText').textContent=txt.join(' ');privLine={a,b};map?.render(false);$('privProfileDialog').showModal();}
 // ---- Vista 3D. WebGL si lo hay (sombreado suave, curvas, lámina de agua a la cota de hoy, tus puntos); si no, el lienzo 2D.
-const P3_VS=`attribute vec2 aXY;attribute float aD;attribute vec2 aG;attribute float aLand;uniform mat4 uMVP;uniform float uEx,uLevel;varying float vD,vLand;varying vec3 vN;
-void main(){float d=aD-uLevel;gl_Position=uMVP*vec4(aXY,-d*uEx,1.0);vD=d;vLand=aLand;vN=normalize(vec3(aG.x*uEx,aG.y*uEx,1.0));}`;
+const P3_VS=`attribute vec2 aXY;attribute float aD;attribute vec2 aG;attribute float aLand;attribute float aC;uniform mat4 uMVP;uniform float uEx,uNEx,uLevel;varying float vD,vLand,vC;varying vec3 vN;
+void main(){float d=aD-uLevel;gl_Position=uMVP*vec4(aXY,-d*uEx,1.0);vD=d;vLand=aLand;vC=aC;vN=normalize(vec3(aG.x*uNEx,aG.y*uNEx,1.0));}`;
 const P3_FS=`#ifdef GL_OES_standard_derivatives
 #extension GL_OES_standard_derivatives : enable
 #endif
-precision mediump float;varying float vD,vLand;varying vec3 vN;uniform vec3 uLight;uniform float uDeriv;
-vec3 ramp(float d){vec3 c0=vec3(.874,.957,1.);vec3 c1=vec3(.651,.871,.973);vec3 c2=vec3(.373,.702,.91);vec3 c3=vec3(.176,.498,.776);vec3 c4=vec3(.106,.345,.627);vec3 c5=vec3(.059,.227,.471);vec3 c6=vec3(.031,.149,.318);
- if(d<2.)return mix(c0,c1,d/2.);if(d<5.)return mix(c1,c2,(d-2.)/3.);if(d<10.)return mix(c2,c3,(d-5.)/5.);if(d<15.)return mix(c3,c4,(d-10.)/5.);if(d<20.)return mix(c4,c5,(d-15.)/5.);return mix(c5,c6,clamp((d-20.)/6.,0.,1.));}
-void main(){float lam=max(0.,dot(normalize(vN),normalize(uLight)));float sh=.42+.62*lam;bool dry=vLand>.5||vD<=0.;vec3 c=dry?vec3(.86,.80,.56):ramp(vD);
+precision mediump float;varying float vD,vLand,vC;varying vec3 vN;uniform vec3 uLight;uniform float uDeriv,uHi;
+vec3 ramp(float d){vec3 c0=vec3(.92,.97,1.);vec3 c1=vec3(.74,.92,.98);vec3 c2=vec3(.55,.85,.95);vec3 c3=vec3(.33,.74,.88);vec3 c4=vec3(.22,.6,.82);vec3 c5=vec3(.16,.47,.74);vec3 c6=vec3(.12,.36,.64);vec3 c7=vec3(.09,.26,.53);vec3 c8=vec3(.07,.18,.42);vec3 c9=vec3(.05,.11,.3);
+ if(d<1.)return mix(c0,c1,d);if(d<2.)return mix(c1,c2,d-1.);if(d<4.)return mix(c2,c3,(d-2.)/2.);if(d<6.)return mix(c3,c4,(d-4.)/2.);if(d<9.)return mix(c4,c5,(d-6.)/3.);if(d<12.)return mix(c5,c6,(d-9.)/3.);if(d<16.)return mix(c6,c7,(d-12.)/4.);if(d<20.)return mix(c7,c8,(d-16.)/4.);return mix(c8,c9,clamp((d-20.)/6.,0.,1.));}
+void main(){vec3 n=normalize(vN);float lam=dot(n,normalize(uLight));float lam2=max(0.,dot(n,normalize(vec3(.65,-.35,.45))));float sh=uHi>.5?(.28+.5*pow(lam*.5+.5,2.)+.3*lam2)*(1.+vC):(.42+.62*max(0.,lam));bool dry=vLand>.5||vD<=0.;vec3 c=dry?vec3(.86,.80,.56):ramp(vD);
  if(!dry&&uDeriv>.5){
 #ifdef GL_OES_standard_derivatives
- float fw=max(fwidth(vD),1e-4);float d1=abs(fract(vD)-.5);float a1=smoothstep(.5-1.6*fw,.5-.4*fw,d1);float d5=abs(fract(vD/5.)-.5);float a5=smoothstep(.5-1.6*fw/5.,.5-.4*fw/5.,d5);c=mix(c,vec3(1.),clamp(a1*.22+a5*.3,0.,.5));
+ float fw=max(fwidth(vD),1e-4);float d1=abs(fract(vD)-.5);float a1=smoothstep(.5-1.6*fw,.5-.4*fw,d1);float d5=abs(fract(vD/5.)-.5);float a5=smoothstep(.5-1.6*fw/5.,.5-.4*fw/5.,d5);float a05=0.;if(uHi>.5){float dh=abs(fract(vD*2.)-.5);a05=smoothstep(.5-1.6*fw*2.,.5-.4*fw*2.,dh)*.1;}c=mix(c,vec3(1.),clamp(a1*.22+a5*.3+a05,0.,.55));
 #endif
  }
  gl_FragColor=vec4(c*sh,1.);}`;
@@ -1193,7 +1194,7 @@ function p3Mesh(l,gl){const g0=privGrid(l),w0=l.w,h0=l.h,step=Math.max(1,Math.ce
  const D=new Float32Array(n),LAND=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const v=g0[(j*step)*w0+i*step];const k=j*w+i;if(isNaN(v)){LAND[k]=1;D[k]=0;}else D[k]=v;}
  for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(LAND[j*w+i]){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=w||jj>=h)continue;const k=jj*w+ii;if(!LAND[k]){s+=D[k];c++;}}D[j*w+i]=c?s/c*.5:0;}
  let S=D;for(let pass=0;pass<2;pass++){const T=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=clamp(i+di,0,w-1),jj=clamp(j+dj,0,h-1),k=jj*w+ii;if(LAND[k]===LAND[j*w+i]){s+=S[k];c++;}}T[j*w+i]=s/c;}S=T;}
- const V=new Float32Array(n*6);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,o=k*6,zl=S[j*w+Math.max(0,i-1)],zr=S[j*w+Math.min(w-1,i+1)],zu=S[Math.max(0,j-1)*w+i],zd=S[Math.min(h-1,j+1)*w+i];V[o]=i*cell;V[o+1]=-j*cell;V[o+2]=S[k];V[o+3]=(zr-zl)/(2*cell);V[o+4]=-(zd-zu)/(2*cell);V[o+5]=LAND[k];}
+ const V=new Float32Array(n*7);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,o=k*7,zl=S[j*w+Math.max(0,i-1)],zr=S[j*w+Math.min(w-1,i+1)],zu=S[Math.max(0,j-1)*w+i],zd=S[Math.min(h-1,j+1)*w+i];V[o]=i*cell;V[o+1]=-j*cell;V[o+2]=S[k];V[o+3]=(zr-zl)/(2*cell);V[o+4]=-(zd-zu)/(2*cell);V[o+5]=LAND[k];V[o+6]=LAND[k]?0:clamp((zl+zr+zu+zd-4*S[k])/(cell*cell)*6,-.35,.35);}
  const big=!!gl.getExtension('OES_element_index_uint'),I=big?new Uint32Array((w-1)*(h-1)*6):null;if(!big&&n>65535)return null;const I16=big?null:new Uint16Array((w-1)*(h-1)*6),IX=I||I16;let m=0;
  for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i;IX[m++]=k;IX[m++]=k+w;IX[m++]=k+1;IX[m++]=k+1;IX[m++]=k+w;IX[m++]=k+w+1;}
  const poles=[];const add=(ll,col,name)=>{const f=privFrac(l,ll);if(!f)return;const i=f[0]/step,j=f[1]/step,z=privSample(l,f[0],f[1]);if(z===null)return;poles.push({x:i*cell,y:-j*cell,z,col,name});};
@@ -1204,7 +1205,7 @@ function priv3dOpen(l){const c=$('priv3d');if(!p3?.gl&&p3?.mode!=='2d'){let gl=n
   if(gl){try{const deriv=!!gl.getExtension('OES_standard_derivatives');const prog=p3Shader(gl,P3_VS,P3_FS),wprog=p3Shader(gl,P3_WVS,P3_WFS),lprog=p3Shader(gl,P3_LVS,P3_WFS);p3={mode:'gl',gl,prog,wprog,lprog,deriv,frames:0};}catch(e){p3={mode:'2d',frames:0};}}else p3={mode:'2d',frames:0};}
  else p3={...p3,frames:0};
  const mesh=p3.mode==='gl'?p3Mesh(l,p3.gl):null;if(p3.mode==='gl'&&!mesh)p3={mode:'2d',frames:0};
- Object.assign(p3,{l,mesh,az:-125,el:48,zoom:1,ex:3,level:privLevel(l),scale:Math.max(10,Math.ceil(l.zmax/5)*5)});
+ Object.assign(p3,{l,mesh,az:-125,el:48,zoom:1,ex:3,hi:$('priv3dHi')?.checked!==false,level:privLevel(l),scale:Math.max(10,Math.ceil(l.zmax/5)*5)});
  if(p3.mode==='gl'){const gl=p3.gl;p3.vbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.vbo);gl.bufferData(gl.ARRAY_BUFFER,mesh.V,gl.STATIC_DRAW);p3.ibo=gl.createBuffer();gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p3.ibo);gl.bufferData(gl.ELEMENT_ARRAY_BUFFER,mesh.IX,gl.STATIC_DRAW);
   p3.wbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.wbo);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array([0,0,mesh.W,0,0,-mesh.H,mesh.W,-mesh.H]),gl.STATIC_DRAW);
   const P=[];for(const q of mesh.poles)P.push(q.x,q.y,0,q.x,q.y,q.z);p3.pbo=gl.createBuffer();gl.bindBuffer(gl.ARRAY_BUFFER,p3.pbo);gl.bufferData(gl.ARRAY_BUFFER,new Float32Array(P),gl.STATIC_DRAW);}
@@ -1220,10 +1221,10 @@ function priv3dDraw(){if(!p3)return;p3.frames++;if(p3.mode==='gl')priv3dDrawGl()
 function priv3dCamera(){const c=$('priv3d'),{mesh}=p3,cw=c.width,ch=c.height,a=p3.az*DEG,e=p3.el*DEG,ext=Math.hypot(mesh.W,mesh.H),dist=ext*1.15/p3.zoom,cx=mesh.W/2,cy=-mesh.H/2;
  const eye=[cx+dist*Math.cos(e)*Math.sin(a),cy-dist*Math.cos(e)*Math.cos(a),dist*Math.sin(e)],mvp=m4mul(m4persp(42*DEG,cw/ch,dist*.05,dist*6),m4look(eye,[cx,cy,-p3.ex*p3.scale*.25],[0,0,1]));return {mvp,cw,ch};}
 function priv3dDrawGl(){const {gl,prog,wprog,lprog,mesh}=p3,c=$('priv3d'),{mvp,cw,ch}=priv3dCamera();gl.viewport(0,0,cw,ch);gl.clearColor(.043,.067,.094,1);gl.enable(gl.DEPTH_TEST);gl.disable(gl.BLEND);gl.clear(gl.COLOR_BUFFER_BIT|gl.DEPTH_BUFFER_BIT);
- gl.useProgram(prog);gl.bindBuffer(gl.ARRAY_BUFFER,p3.vbo);const st=24,at=(nm,sz,off)=>{const a=gl.getAttribLocation(prog,nm);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,sz,gl.FLOAT,false,st,off);};at('aXY',2,0);at('aD',1,8);at('aG',2,12);at('aLand',1,20);
- gl.uniformMatrix4fv(gl.getUniformLocation(prog,'uMVP'),false,mvp);gl.uniform1f(gl.getUniformLocation(prog,'uEx'),p3.ex);gl.uniform1f(gl.getUniformLocation(prog,'uLevel'),p3.level);gl.uniform3f(gl.getUniformLocation(prog,'uLight'),-.5,.6,.62);gl.uniform1f(gl.getUniformLocation(prog,'uDeriv'),p3.deriv?1:0);
+ gl.useProgram(prog);gl.bindBuffer(gl.ARRAY_BUFFER,p3.vbo);const st=28,at=(nm,sz,off)=>{const a=gl.getAttribLocation(prog,nm);gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,sz,gl.FLOAT,false,st,off);};at('aXY',2,0);at('aD',1,8);at('aG',2,12);at('aLand',1,20);at('aC',1,24);
+ gl.uniformMatrix4fv(gl.getUniformLocation(prog,'uMVP'),false,mvp);gl.uniform1f(gl.getUniformLocation(prog,'uEx'),p3.ex);gl.uniform1f(gl.getUniformLocation(prog,'uNEx'),p3.hi?p3.ex*2.2:p3.ex);gl.uniform1f(gl.getUniformLocation(prog,'uLevel'),p3.level);gl.uniform3f(gl.getUniformLocation(prog,'uLight'),-.5,.6,.62);gl.uniform1f(gl.getUniformLocation(prog,'uDeriv'),p3.deriv?1:0);gl.uniform1f(gl.getUniformLocation(prog,'uHi'),p3.hi?1:0);
  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER,p3.ibo);gl.drawElements(gl.TRIANGLES,mesh.IX.length,mesh.big?gl.UNSIGNED_INT:gl.UNSIGNED_SHORT,0);
- for(const nm of ['aXY','aD','aG','aLand'])gl.disableVertexAttribArray(gl.getAttribLocation(prog,nm));
+ for(const nm of ['aXY','aD','aG','aLand','aC'])gl.disableVertexAttribArray(gl.getAttribLocation(prog,nm));
  if(mesh.poles.length){gl.useProgram(lprog);gl.bindBuffer(gl.ARRAY_BUFFER,p3.pbo);const a=gl.getAttribLocation(lprog,'aP');gl.enableVertexAttribArray(a);gl.vertexAttribPointer(a,3,gl.FLOAT,false,0,0);gl.uniformMatrix4fv(gl.getUniformLocation(lprog,'uMVP'),false,mvp);gl.uniform1f(gl.getUniformLocation(lprog,'uEx'),p3.ex);gl.uniform4f(gl.getUniformLocation(lprog,'uColor'),1,.84,.4,1);gl.lineWidth(2);gl.drawArrays(gl.LINES,0,mesh.poles.length*2);gl.disableVertexAttribArray(a);}
  gl.useProgram(wprog);gl.enable(gl.BLEND);gl.blendFunc(gl.SRC_ALPHA,gl.ONE_MINUS_SRC_ALPHA);gl.depthMask(false);gl.bindBuffer(gl.ARRAY_BUFFER,p3.wbo);const aw=gl.getAttribLocation(wprog,'aXY');gl.enableVertexAttribArray(aw);gl.vertexAttribPointer(aw,2,gl.FLOAT,false,0,0);gl.uniformMatrix4fv(gl.getUniformLocation(wprog,'uMVP'),false,mvp);gl.uniform4f(gl.getUniformLocation(wprog,'uColor'),.35,.65,.95,.26);gl.drawArrays(gl.TRIANGLE_STRIP,0,4);gl.disableVertexAttribArray(aw);gl.depthMask(true);gl.disable(gl.BLEND);
  // etiquetas HTML de los mástiles
@@ -1247,6 +1248,7 @@ function wirePriv3d(){const c=$('priv3d');if(!c)return;let drag=null,pinch=null;
  c.addEventListener('wheel',e=>{if(!p3)return;p3.zoom=clamp(p3.zoom*(e.deltaY<0?1.1:.9),.5,4);priv3dQueue();},{passive:true});
  $('priv3dEx').oninput=e=>{if(!p3)return;p3.ex=+e.target.value;$('priv3dExVal').textContent=`×${p3.ex}`;priv3dQueue();};
  $('priv3dReset').onclick=()=>{if(!p3)return;Object.assign(p3,{az:-125,el:48,zoom:1});priv3dQueue();};
+ const hi=$('priv3dHi');if(hi)hi.onchange=()=>{if(!p3)return;p3.hi=hi.checked;priv3dQueue();};
  $('privDialog').addEventListener('close',()=>{if(p3?.mode==='gl'){const gl=p3.gl;for(const b of [p3.vbo,p3.ibo,p3.wbo,p3.pbo])if(b)gl.deleteBuffer(b);p3={mode:'gl',gl,prog:p3.prog,wprog:p3.wprog,lprog:p3.lprog,deriv:p3.deriv,frames:0,l:null};}else if(p3)p3={mode:'2d',frames:0,l:null};const box=$('priv3dLabels');if(box)box.innerHTML='';});
  addEventListener('resize',()=>{if(p3?.l&&$('privDialog').open)priv3dSize();});
  $('privProfileDialog')?.addEventListener('close',()=>{privLine=null;map?.render(false);});}
@@ -1262,12 +1264,15 @@ function wirePriv(){if(!$('privSection'))return;try{const u=JSON.parse(localStor
   else if(d.privProfile){privUi.on=true;privSave();privArmMode('profile',l);}
   else if(d.privUnlevel){l.level=0;privPut(l).catch(()=>{});privForget(l.id);renderPriv();map?.render(false);}
   else if(d.privDel&&confirm('¿Borrar esta capa de este móvil? El archivo del que salió no se toca.')){privDel(l.id).then(()=>{privLayers=privLayers.filter(x=>x.id!==l.id);privForget(l.id);renderPriv();map?.render(false);}).catch(err=>toast(String(err.message||err),true));}};
- wirePriv3d();
+ wirePriv3d();const sp=$('spotProfile');if(sp)sp.onclick=()=>{const f=state.features.find(x=>x.id===spotSheetId),o=aimOrigin();if(!f||!o)return;privProfileOpen(o.coords,f.geometry.coordinates,o.label);};
  privAll().then(ls=>{privLayers=ls.map(l=>({...l,level:+l.level||0,z:l.z instanceof Uint16Array?l.z:new Uint16Array(l.z),land:l.land?(l.land instanceof Uint8Array?l.land:new Uint8Array(l.land)):null}));renderPriv();map?.render(false);}).catch(err=>{$('privStatus').textContent=`Capas no disponibles: ${err.message||err}`;});}
 // Pista en la ficha de un punto: lo que dice la capa propia ahí (no rellena la profundidad medida, que es otra cosa).
+function privSpotSheet(){const b=$('spotProfile');if(!b)return;const f=spotSheetId?state.features.find(x=>x.id===spotSheetId):null,hit=f&&privLayers.length?privLayerAt(f.geometry.coordinates):null,o=aimOrigin();
+ b.hidden=!(hit&&o&&!(o.coords===activeCamp()?.geometry.coordinates&&activeCamp()?.id===f.id));
+ if(hit){const dl=$('spotFacts');if(dl&&!dl.querySelector('.priv-fact'))dl.insertAdjacentHTML('beforeend',`<dt class="priv-fact">Fondo según la capa</dt><dd class="priv-fact">${privFmtToday(hit.l,hit.z)}${privLevel(hit.l)?'':' (sin nivel de hoy)'}</dd>`);}}
 function privPointHint(coords){const el=$('pointLayerHint');if(!el)return;const hit=coords&&privLayers.length?privLayerAt(coords):null;el.hidden=!hit;if(hit)el.textContent=`La capa propia «${hit.l.name}» da aquí ${privFmtToday(hit.l,hit.z)}${privLevel(hit.l)?'':' (según la capa, sin nivel de hoy)'}. No es una medición.`;}
 // ==== fin Capa propia ====
-{const _op=openPoint;openPoint=function(id,c,kind='point'){_op(id,c,kind);privPointHint([num($('pointLng').value),num($('pointLat').value)]);};}
+{const _op=openPoint;openPoint=function(id,c,kind='point'){_op(id,c,kind);privPointHint([num($('pointLng').value),num($('pointLat').value)]);};const _rs=renderSpotSheet;renderSpotSheet=function(){_rs();privSpotSheet();};}
 // ==== Compartir con mi compañero ====
 // Cada móvil manda su última posición a una sala (código de 8 letras) en api/share y lee la de los demás.
 // Una web no recibe GPS en segundo plano. Con la pantalla apagada o en otra app, Android sigue mandando la última posición
