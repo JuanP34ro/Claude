@@ -206,6 +206,11 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 2', timeout=15000)
                 extras = page.evaluate(f'window.OrellanaAtlas.priv().profileExtras([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
                 assert len(extras['others']) == 1 and extras['others'][0]['n'] > 10 and abs(abs(extras['others'][0]['diff']) - 2) < 0.05 and isinstance(extras['spots'], list) and isinstance(extras['rods'], list), f'profile comparison wrong: {extras}'
+                # El cursor del gráfico se muestra de verdad (el grupo SVG no tiene la propiedad «hidden» de HTML).
+                assert page.evaluate(f'window.OrellanaAtlas.priv().profileOpen([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])') is True, 'profile dialog did not open'
+                page.evaluate("(() => { const svg = document.querySelector('#privProfile svg'); const r = svg.getBoundingClientRect(); svg.dispatchEvent(new PointerEvent('pointerdown', {clientX: r.left + r.width * 0.6, clientY: r.top + r.height * 0.5, pointerId: 7, bubbles: true})); })()")
+                assert page.evaluate("document.getElementById('privCursor').hasAttribute('hidden')") is False and ' m' in page.evaluate("document.querySelector('#privCursor text').textContent"), 'profile cursor not shown'
+                page.locator('#privProfileDialog .close-dialog').click()
                 page.locator('[data-go="spots"]').click()
                 page.once('dialog', lambda d: d.accept())
                 page.locator('[data-priv-del]').nth(1).click()
