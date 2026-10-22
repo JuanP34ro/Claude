@@ -136,6 +136,32 @@ def main():
                 assert page.locator('#gpsBadge').is_visible() and 'Parado' in page.locator('#gpsMain').inner_text(), 'GPS badge missing'
                 page.locator('#locateBtn').click()
                 assert page.evaluate('window.OrellanaAtlas.getGps()') is None, 'GPS did not stop'
+                # Capa propia de fondo: importar una rejilla sintética, verla en el mapa, profundidad al tocar, 3D y borrado.
+                from test_priv_layer import synthetic_layer_bytes
+                page.locator('[data-go="spots"]').click()
+                page.locator('#privIn').set_input_files({'name': 'prueba.json', 'mimeType': 'application/json', 'buffer': synthetic_layer_bytes()})
+                page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 1', timeout=15000)
+                priv = page.evaluate('window.OrellanaAtlas.priv()')
+                assert priv['layers'][0]['w'] == 40 and abs(priv['layers'][0]['zmax'] - 18) < 0.01, f'layer not parsed: {priv}'
+                assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'map', 'import did not show the map'
+                page.wait_for_function("document.querySelectorAll('#map svg image').length === 1", timeout=5000)
+                b = priv['layers'][0]['bounds']
+                assert page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.4}, {(b[1] + b[3]) / 2}])') == [17.8], 'depth lookup'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().depthAt([{b[0] + (b[2] - b[0]) * 0.95}, {(b[1] + b[3]) / 2}])') == [None], 'land must have no depth'
+                page.locator('[data-go="spots"]').click()
+                page.locator('[data-priv-three]').first.click()
+                page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300", timeout=5000)
+                assert page.evaluate("(() => { const c = document.getElementById('priv3d'), d = c.getContext('2d').getImageData(0, 0, c.width, c.height).data; let n = 0; for (let i = 0; i < d.length; i += 16) if (!(d[i] === 11 && d[i + 1] === 17 && d[i + 2] === 24)) n++; return n; })()") > 500, '3D view painted nothing'
+                page.locator('#privDialog .close-dialog').click()
+                page.reload(wait_until='domcontentloaded')
+                page.wait_for_function('window.OrellanaAtlas')
+                page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 1', timeout=10000)
+                assert 'cfn-capa' not in page.evaluate('JSON.stringify(window.OrellanaAtlas.getState())'), 'the private layer leaked into the saved state'
+                page.locator('[data-go="spots"]').click()
+                page.once('dialog', lambda d: d.accept())   # «¿Borrar esta capa…?»
+                page.locator('[data-priv-del]').first.click()
+                page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 0', timeout=5000)
+                page.locator('[data-go="map"]').click()
                 # WCC 2026 (capa temporal del concurso): búsqueda, ficha, «Es mi puesto» y zona desde el GPS.
                 page.locator('#layersPill').click()
                 page.locator('#wccEnabled').check()
@@ -253,7 +279,7 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas', timeout=10000)
                 context.set_offline(False)
                 assert not errors, errors
-                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, WCC 2026 peg search, zone from GPS and programme countdown, weather reading, alerts, daily outlook and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
+                print(f'PASS {name}: startup, catalogue scale limits, tutorial, no overflow, paths badge off, tabs, point form, save/reload, GPS follow, private bottom layer, WCC 2026 peg search, zone from GPS and programme countdown, weather reading, alerts, daily outlook and water temperature, quick catch, session timeline, catch photo, learning notebook, rod alarm colour, contextual help, export, offline reopen; maps unavailable by design')
                 context.close()
             team_check(browser, base)
             browser.close()

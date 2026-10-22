@@ -241,7 +241,7 @@ let vecHold=false,vecPending=false;
 const redCache=new Map();function redOf(hex){if(redCache.has(hex))return redCache.get(hex);let h=hex.slice(1);if(h.length===3)h=[...h].map(c=>c+c).join('');const r=parseInt(h.slice(0,2),16),g=parseInt(h.slice(2,4),16),b=parseInt(h.slice(4,6),16),v=`rgb(${Math.min(255,Math.round((.35*r+.55*g+.1*b)*1.25))},0,0)`;redCache.set(hex,v);return v;}
 // LED del avisador de cada caña sobre su spot, en fila encima del marcador.
 function rodLeds(id){const rs=state.rods.filter(r=>r.pointId===id);return rs.map((r,k)=>`<circle cx="${((k-(rs.length-1)/2)*9).toFixed(1)}" cy="-21" r="3.6" fill="${ledRgb(r)}" stroke="#14110c" stroke-width="1.6"${state.settings.nightMode?' opacity=".8"':''}><title>${esc(r.name)} · avisador ${alarmOf(r)[0].toLowerCase()}</title></circle>`).join('');}
-function drawVectors(){if(!map)return;let s=wccVectors();const camp=activeCamp();const ringColors=['#c9a45c','#cf8b4f','#ff9e92','#b99cff'];if(camp&&state.settings.rings){for(const[m,color,i]of state.settings.ringsM.map((m,i)=>[m,ringColors[i%4],i])){const pts=Array.from({length:73},(_,i)=>destination(camp.geometry.coordinates,m,i*5));s+=`<path d="${polyPath(pts)}Z" fill="${color}" fill-opacity=".035" stroke="${color}" stroke-width="1.5" stroke-dasharray="6 5"/>`;const p=map.project(destination(camp.geometry.coordinates,m,62+i*15));s+=`<text x="${p[0]+5}" y="${p[1]-5}" class="map-label" style="fill:${color}">${m} m · ${(m/state.settings.wrapM).toFixed(0)} v</text>`;}}
+function drawVectors(){if(!map)return;let s=privVectors()+wccVectors();const camp=activeCamp();const ringColors=['#c9a45c','#cf8b4f','#ff9e92','#b99cff'];if(camp&&state.settings.rings){for(const[m,color,i]of state.settings.ringsM.map((m,i)=>[m,ringColors[i%4],i])){const pts=Array.from({length:73},(_,i)=>destination(camp.geometry.coordinates,m,i*5));s+=`<path d="${polyPath(pts)}Z" fill="${color}" fill-opacity=".035" stroke="${color}" stroke-width="1.5" stroke-dasharray="6 5"/>`;const p=map.project(destination(camp.geometry.coordinates,m,62+i*15));s+=`<text x="${p[0]+5}" y="${p[1]-5}" class="map-label" style="fill:${color}">${m} m · ${(m/state.settings.wrapM).toFixed(0)} v</text>`;}}
  if(camp&&state.settings.campLines){const cp=map.project(camp.geometry.coordinates);for(const f of state.features){if(f.geometry.type!=='Point'||f.id===camp.id||f.properties.kind==='camp')continue;const p=map.project(f.geometry.coordinates);s+=`<line x1="${cp[0].toFixed(1)}" y1="${cp[1].toFixed(1)}" x2="${p[0].toFixed(1)}" y2="${p[1].toFixed(1)}" stroke="${KINDS[f.properties.kind][1]}" stroke-opacity=".55" stroke-width="1.5" stroke-dasharray="3 5"/>`;}}
  for(const f of state.features){if(f.geometry.type==='LineString'){s+=`<path d="${polyPath(f.geometry.coordinates)}" fill="none" stroke="#262018" stroke-width="6"/><path d="${polyPath(f.geometry.coordinates)}" fill="none" stroke="#cf8b4f" stroke-width="2.5"/>`;}}
  s+=headingVectors();
@@ -757,7 +757,7 @@ function sheetDrag(sheet,handles,onClose){let d=null;for(const h of handles){
 // ===== Ficha de un camino público: tocar una línea del catálogo y pedir sus datos oficiales (GetFeatureInfo, a través del proxy) =====
 let pathPick=null,pathHint=false;
 // Toque simple en el mapa con los caminos a la vista: se busca la línea dibujada más cercana al dedo y se consulta justo ese píxel.
-function onMapTap(ll){if(teamTap(ll))return;if(wccTap(ll))return;const slot=slots?.roads,src=SOURCES.caminos;if(screen!=='map'||!slot?.visible||slot.far||!src.layer||src.queryable===false)return;const hit=slot.nearestInk(map,map.project(ll),26);
+function onMapTap(ll){if(teamTap(ll))return;if(privTap(ll))return;if(wccTap(ll))return;const slot=slots?.roads,src=SOURCES.caminos;if(screen!=='map'||!slot?.visible||slot.far||!src.layer||src.queryable===false)return;const hit=slot.nearestInk(map,map.project(ll),26);
  if(hit?.unreadable||(hit&&!networkProxy)){if(!pathHint){pathHint=true;toast('La ficha de los caminos necesita la app publicada con su servidor (la dirección de Vercel).',true);}return;}
  if(!hit){if(!$('pathSheet').hidden)closePath();else if(!pathHint&&slot.stats().loaded){pathHint=true;toast('Toca justo encima de un camino para ver su ficha.');}return;}
  openPath(hit);}
@@ -1058,6 +1058,85 @@ function wirePhotos(){if(!$('catchPhotoBtn'))return;photoKeys().then(k=>{for(con
  $('catchesList').addEventListener('click',e=>{const img=e.target.closest('[data-photo]');if(img)openPhoto(img.dataset.photo);});
  $('photoClose').onclick=()=>$('photoDialog').close();}
 // ==== fin fotos ====
+// ==== Capa propia (solo en este móvil) ====
+// Una rejilla de profundidades con su posición, preparada por el usuario (archivo .json «cfn-capa»): se guarda en IndexedDB,
+// fuera de orellana-atlas-v1 y de la copia de seguridad, no se exporta ni se comparte, y se pinta como imagen georreferenciada
+// debajo de las demás capas. La app no sabe de dónde salen los datos: lo dice el campo «source» que escribió quien la preparó.
+const PRIV_DB='orellana-atlas-private',PRIV_UI='orellana-atlas-private-ui',PRIV_NONE=65535;
+let privDb=null,privLayers=[],privUi={on:true,opacity:80},p3=null,p3Frame=null;
+const privUrls=new Map(),privPending=new Set();
+function privOpen(){if(privDb)return Promise.resolve(privDb);return new Promise((res,rej)=>{if(!('indexedDB' in window))return rej(Error('Este navegador no guarda capas.'));const r=indexedDB.open(PRIV_DB,1);r.onupgradeneeded=()=>r.result.createObjectStore('layers',{keyPath:'id'});r.onsuccess=()=>{privDb=r.result;res(privDb);};r.onerror=()=>rej(r.error||Error('No se pudo abrir el almacén de capas.'));});}
+function privTx(mode,run){return privOpen().then(db=>new Promise((res,rej)=>{const t=db.transaction('layers',mode),q=run(t.objectStore('layers'));t.oncomplete=()=>res(q?.result);t.onerror=()=>rej(t.error||Error('Error del almacén de capas.'));}));}
+const privAll=()=>privTx('readonly',s=>s.getAll()).then(v=>v||[]),privPut=l=>privTx('readwrite',s=>s.put(l)),privDel=id=>privTx('readwrite',s=>s.delete(id));
+function privSave(){try{localStorage.setItem(PRIV_UI,JSON.stringify(privUi));}catch{}}
+const privB64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0)),privFmt=z=>z.toFixed(1).replace('.',','),privScale=l=>Math.max(10,Math.ceil(l.zmax/5)*5);
+// Lee y valida un archivo «cfn-capa» v1: límites [O,S,E,N] en grados, rejilla w×h en decímetros (uint16 base64, 65535 = sin dato) y máscara de tierra opcional (bits).
+function privParse(text){let d;try{d=JSON.parse(text);}catch{throw Error('no es un archivo JSON.');}
+ if(d?.type!=='cfn-capa'||d.v!==1)throw Error('no es una capa propia (cfn-capa v1).');
+ const b=Array.isArray(d.bounds)?d.bounds.map(Number):[],w=d.w|0,h=d.h|0;
+ if(b.length!==4||b.some(v=>!Number.isFinite(v))||b[0]>=b[2]||b[1]>=b[3]||Math.abs(b[1])>85||Math.abs(b[3])>85||Math.abs(b[0])>180||Math.abs(b[2])>180)throw Error('los límites de la capa no son válidos.');
+ if(w<2||h<2||w*h>4e6)throw Error('el tamaño de la rejilla no es válido.');
+ let z;try{const raw=privB64(String(d.z));z=new Uint16Array(raw.buffer,raw.byteOffset,raw.byteLength>>1);}catch{throw Error('la rejilla no se puede leer.');}
+ if(z.length!==w*h)throw Error('la rejilla no coincide con su tamaño.');
+ let land=null;if(d.land){try{land=privB64(String(d.land));}catch{throw Error('la máscara de tierra no se puede leer.');}if(land.length<Math.ceil(w*h/8))throw Error('la máscara de tierra no coincide con la rejilla.');}
+ let zmax=0;for(const v of z)if(v!==PRIV_NONE&&v>zmax)zmax=v;
+ return {id:`priv_${Date.now().toString(36)}${Math.random().toString(36).slice(2,6)}`,name:String(d.name||'Capa propia').slice(0,80),source:String(d.source||'').slice(0,400),bounds:b,w,h,z:new Uint16Array(z),land,zmax:zmax/10,at:new Date().toISOString()};}
+const privLand=(l,i)=>!!l.land&&((l.land[i>>3]>>(7-(i&7)))&1);
+const privZ=(l,i,j)=>{const v=l.z[clamp(j,0,l.h-1)*l.w+clamp(i,0,l.w-1)];return v===PRIV_NONE?null:v/10;};
+const privCellM=l=>Math.max(0.1,(l.bounds[2]-l.bounds[0])*111320*Math.cos((l.bounds[1]+l.bounds[3])/2*DEG)/l.w);
+function privCell(l,ll){const [W,S,E,N]=l.bounds;if(ll[0]<W||ll[0]>E||ll[1]<S||ll[1]>N)return null;const a=xy(ll),tl=xy([W,N]),br=xy([E,S]);return [clamp(Math.floor((a[0]-tl[0])/(br[0]-tl[0])*l.w),0,l.w-1),clamp(Math.floor((a[1]-tl[1])/(br[1]-tl[1])*l.h),0,l.h-1)];}
+function privDepthAt(l,ll){const c=privCell(l,ll);if(!c)return null;return privLand(l,c[1]*l.w+c[0])?null:privZ(l,c[0],c[1]);}
+// Sombreado del relieve y color por profundidad (claro somero, azul marino hondo); la luz viene del noroeste.
+function privShade(gx,gy){const nl=Math.hypot(gx,gy,1);return clamp(0.42+0.62*((gx/nl)*-0.5+(gy/nl)*-0.6+(1/nl)*0.62),0.3,1);}
+function privRgb(z,scale,sh,night){const t=Math.min(1,z/scale);let r=150*(1-t)+8*t,g=218*(1-t)+40*t,b=248*(1-t)+120*t;if(night){const lum=0.3*r+0.59*g+0.11*b;r=lum;g=lum*.12;b=lum*.12;}return [r*sh,g*sh,b*sh];}
+// Imagen de la capa, una por capa y modo (día/noche), guardada como blob; tierra y sin dato quedan transparentes.
+function privImage(l){const night=document.documentElement.classList.contains('night'),key=`${l.id}:${night?'n':'d'}`;if(privUrls.has(key))return privUrls.get(key);if(privPending.has(key))return '';privPending.add(key);
+ const c=document.createElement('canvas');c.width=l.w;c.height=l.h;const ctx=c.getContext('2d'),img=ctx.createImageData(l.w,l.h),px=img.data,scale=privScale(l),cell=privCellM(l);
+ for(let j=0;j<l.h;j++)for(let i=0;i<l.w;i++){const k=j*l.w+i,v=privZ(l,i,j);if(v===null||privLand(l,k))continue;const gx=((privZ(l,i+1,j)??v)-(privZ(l,i-1,j)??v))/(2*cell)*3,gy=((privZ(l,i,j+1)??v)-(privZ(l,i,j-1)??v))/(2*cell)*3,[r,g,b]=privRgb(v,scale,privShade(gx,gy),night);px[k*4]=r;px[k*4+1]=g;px[k*4+2]=b;px[k*4+3]=255;}
+ ctx.putImageData(img,0,0);c.toBlob(b=>{privPending.delete(key);if(b){privUrls.set(key,URL.createObjectURL(b));map?.render(false);}},'image/png');return '';}
+function privForget(id){for(const [k,u] of [...privUrls])if(k.startsWith(id+':')){URL.revokeObjectURL(u);privUrls.delete(k);}}
+function privVectors(){if(!privUi.on||!map||!privLayers.length)return '';let s='';for(const l of privLayers){const [W,S,E,N]=l.bounds,a=map.project([W,N]),b=map.project([E,S]);if(b[0]<-50||a[0]>map.width+50||b[1]<-50||a[1]>map.height+50)continue;const u=privImage(l);if(!u)continue;s+=`<image href="${u}" x="${a[0].toFixed(1)}" y="${a[1].toFixed(1)}" width="${(b[0]-a[0]).toFixed(1)}" height="${(b[1]-a[1]).toFixed(1)}" preserveAspectRatio="none" opacity="${(privUi.opacity/100).toFixed(2)}"/>`;}return s;}
+function privTap(ll){if(!privUi.on||screen!=='map'||!map||!privLayers.length)return false;if(typeof WCC!=='undefined'&&WCC?.pegs){const p=map.project(ll);for(const q of WCC.pegs){const r=map.project([q[2],q[3]]);if(Math.hypot(r[0]-p[0],r[1]-p[1])<22)return false;}}for(const l of privLayers){const z=privDepthAt(l,ll);if(z!==null){toast(`Fondo ${privFmt(z)} m según «${l.name}»`);return true;}}return false;}
+function privFocus(l){if(!map)return;showMap();const [W,S,E,N]=l.bounds;map.fit([[W,S],[E,N]],0,0,64);map.render(false);}
+function renderPriv(){const list=$('privList');if(!list)return;$('privOn').checked=privUi.on;$('privOpacity').value=privUi.opacity;$('privOpVal').textContent=`${privUi.opacity} %`;
+ list.innerHTML=privLayers.length?`<ul class="priv-list">${privLayers.map(l=>`<li><div><b>${esc(l.name)}</b><small>${l.w}×${l.h} celdas de ${privFmt(privCellM(l))} m · fondo hasta ${privFmt(l.zmax)} m · importada ${esc(dayName(Date.parse(l.at)))}</small>${l.source?`<small>${esc(l.source)}</small>`:''}</div><div class="team-acts"><button type="button" data-priv-view="${l.id}">Ver</button><button type="button" data-priv-three="${l.id}">3D</button><button type="button" data-priv-del="${l.id}">Borrar</button></div></li>`).join('')}</ul>`:'<p class="tiny">Sin capas. Importa un archivo «cfn-capa» que te hayas preparado.</p>';}
+// Vista 3D: la rejilla, reducida a unas 110 columnas y en metros reales, pintada de atrás adelante en un lienzo; se gira con el dedo.
+function priv3dOpen(l){const step=Math.max(1,Math.ceil(l.w/110)),w=Math.floor(l.w/step),h=Math.floor(l.h/step),Z=new Float32Array(w*h),L=new Uint8Array(w*h),cell=privCellM(l)*step;
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++){let sum=0,n=0,land=0;for(let dj=0;dj<step;dj++)for(let di=0;di<step;di++){const k=(j*step+dj)*l.w+i*step+di;if(privLand(l,k))land++;else if(l.z[k]!==PRIV_NONE){sum+=l.z[k]/10;n++;}}Z[j*w+i]=n?sum/n:0;L[j*w+i]=land>=step*step/2||!n?1:0;}
+ p3={l,w,h,Z,L,cell,az:-125,el:48,zoom:1,ex:3,scale:privScale(l)};$('priv3dTitle').textContent=`${l.name} · 3D`;$('priv3dSource').textContent=l.source;$('priv3dEx').value=3;$('priv3dExVal').textContent='×3';$('privDialog').showModal();requestAnimationFrame(priv3dSize);}
+function priv3dSize(){const c=$('priv3d');if(!c||!p3)return;const r=devicePixelRatio||1,w=Math.round(c.clientWidth*r),h=Math.round(c.clientHeight*r);if(w&&h&&(c.width!==w||c.height!==h)){c.width=w;c.height=h;}priv3dDraw();}
+function priv3dQueue(){if(p3Frame)return;p3Frame=requestAnimationFrame(()=>{p3Frame=null;priv3dDraw();});}
+function priv3dDraw(){if(!p3)return;const c=$('priv3d'),ctx=c.getContext('2d'),cw=c.width,ch=c.height,{w,h,Z,L,cell,ex,scale}=p3;if(!cw||!ch)return;ctx.fillStyle='#0b1118';ctx.fillRect(0,0,cw,ch);
+ const a=p3.az*DEG,e=p3.el*DEG,ca=Math.cos(a),sa=Math.sin(a),ce=Math.cos(e),se=Math.sin(e),ext=Math.hypot(w,h)*cell,sc=p3.zoom*Math.min(cw/(ext*1.02),ch/(ext*0.9)),cx=cw/2,cy=ch*0.47,n=w*h,X=new Float32Array(n),Y=new Float32Array(n),nq=(w-1)*(h-1),K=new Float32Array(nq),idx=new Int32Array(nq);
+ for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k=j*w+i,x=(i-w/2)*cell,y=(j-h/2)*cell,z=-Z[k]*ex,xr=x*ca-y*sa,yr=x*sa+y*ca;X[k]=cx+xr*sc;Y[k]=cy+(yr*se-z*ce)*sc;}
+ let m=0;for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const k=j*w+i,x=(i+.5-w/2)*cell,y=(j+.5-h/2)*cell,z=-(Z[k]+Z[k+1]+Z[k+w]+Z[k+w+1])/4*ex;K[m]=(x*sa+y*ca)*ce+z*se;idx[m]=k;m++;}
+ const ord=Array.from(idx.keys()).sort((p,q)=>K[p]-K[q]);
+ for(const o of ord){const k=idx[o],k2=k+1,k3=k+w,k4=k+w+1,land=L[k]&&L[k2]&&L[k3]&&L[k4],gx=((Z[k2]-Z[k])+(Z[k4]-Z[k3]))/2*ex/cell,gy=((Z[k3]-Z[k])+(Z[k4]-Z[k2]))/2*ex/cell,sh=privShade(gx,gy);
+  if(land)ctx.fillStyle=`rgb(${(224*sh)|0},${(206*sh)|0},${(120*sh)|0})`;else{const [r,g,b]=privRgb((Z[k]+Z[k2]+Z[k3]+Z[k4])/4,scale,sh,false);ctx.fillStyle=`rgb(${r|0},${g|0},${b|0})`;}
+  ctx.beginPath();ctx.moveTo(X[k],Y[k]);ctx.lineTo(X[k2],Y[k2]);ctx.lineTo(X[k4],Y[k4]);ctx.lineTo(X[k3],Y[k3]);ctx.closePath();ctx.fill();ctx.strokeStyle=ctx.fillStyle;ctx.lineWidth=.6;ctx.stroke();}}
+function wirePriv3d(){const c=$('priv3d');if(!c)return;let drag=null,pinch=null;const dist=t=>Math.hypot(t[0].clientX-t[1].clientX,t[0].clientY-t[1].clientY);
+ c.addEventListener('pointerdown',e=>{if(!p3)return;c.setPointerCapture(e.pointerId);drag={x:e.clientX,y:e.clientY,id:e.pointerId};});
+ c.addEventListener('pointermove',e=>{if(!p3||!drag||e.pointerId!==drag.id||pinch)return;p3.az+=(e.clientX-drag.x)*.5;p3.el=clamp(p3.el+(e.clientY-drag.y)*.3,8,85);drag.x=e.clientX;drag.y=e.clientY;priv3dQueue();});
+ for(const ev of ['pointerup','pointercancel'])c.addEventListener(ev,()=>{drag=null;});
+ c.addEventListener('touchstart',e=>{if(e.touches.length===2)pinch=dist(e.touches);},{passive:true});
+ c.addEventListener('touchmove',e=>{if(!p3||e.touches.length!==2||!pinch)return;const d=dist(e.touches);p3.zoom=clamp(p3.zoom*d/pinch,.5,4);pinch=d;priv3dQueue();},{passive:true});
+ c.addEventListener('touchend',e=>{if(e.touches.length<2)pinch=null;},{passive:true});
+ c.addEventListener('wheel',e=>{if(!p3)return;p3.zoom=clamp(p3.zoom*(e.deltaY<0?1.1:.9),.5,4);priv3dQueue();},{passive:true});
+ $('priv3dEx').oninput=e=>{if(!p3)return;p3.ex=+e.target.value;$('priv3dExVal').textContent=`×${p3.ex}`;priv3dQueue();};
+ $('priv3dReset').onclick=()=>{if(!p3)return;Object.assign(p3,{az:-125,el:48,zoom:1});priv3dQueue();};
+ $('privDialog').addEventListener('close',()=>{p3=null;});addEventListener('resize',()=>{if(p3&&$('privDialog').open)priv3dSize();});}
+function wirePriv(){if(!$('privSection'))return;try{const u=JSON.parse(localStorage.getItem(PRIV_UI)||'null');if(u&&typeof u==='object')privUi={on:u.on!==false,opacity:clamp(+u.opacity||80,20,100)};}catch{}
+ $('privOn').onchange=e=>{privUi.on=e.target.checked;privSave();map?.render(false);};
+ $('privOpacity').oninput=e=>{privUi.opacity=+e.target.value;$('privOpVal').textContent=`${privUi.opacity} %`;privSave();map?.render(false);};
+ $('privImport').onclick=()=>$('privIn').click();
+ $('privIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;if(f.size>12*1024*1024){toast('La capa supera 12 MB.',true);return;}try{const l=privParse(await f.text());await privPut(l);privLayers.push(l);privUi.on=true;privSave();renderPriv();privFocus(l);toast(`Capa «${l.name}» guardada en este móvil.`);}catch(err){toast(`No se pudo importar la capa: ${err.message||err}`,true);}};
+ $('privList').onclick=e=>{const b=e.target.closest('button');if(!b)return;const d=b.dataset,l=privLayers.find(x=>x.id===(d.privView||d.privThree||d.privDel));if(!l)return;
+  if(d.privView){privUi.on=true;privSave();renderPriv();privFocus(l);}
+  else if(d.privThree)priv3dOpen(l);
+  else if(d.privDel&&confirm('¿Borrar esta capa de este móvil? El archivo del que salió no se toca.')){privDel(l.id).then(()=>{privLayers=privLayers.filter(x=>x.id!==l.id);privForget(l.id);renderPriv();map?.render(false);}).catch(err=>toast(String(err.message||err),true));}};
+ wirePriv3d();
+ privAll().then(ls=>{privLayers=ls.map(l=>({...l,z:l.z instanceof Uint16Array?l.z:new Uint16Array(l.z),land:l.land?(l.land instanceof Uint8Array?l.land:new Uint8Array(l.land)):null}));renderPriv();map?.render(false);}).catch(err=>{$('privStatus').textContent=`Capas no disponibles: ${err.message||err}`;});}
+// ==== fin Capa propia ====
 // ==== Compartir con mi compañero ====
 // Cada móvil manda su última posición a una sala (código de 8 letras) en api/share y lee la de los demás.
 // Una web no recibe GPS en segundo plano. Con la pantalla apagada o en otra app, Android sigue mandando la última posición
@@ -1153,7 +1232,7 @@ function wireTeam(){if(!$('teamDialog'))return;$('teamBtn').onclick=()=>openTeam
  renderTeam();fromHash();}
 const clean24=v=>String(v||'').replace(/[\u0000-\u001f<>]/g,'').trim().slice(0,24)||'Compañero';
 // ==== fin compartir ====
-async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new RasterSlot($('photoRaster')),topo:new RasterSlot($('topoRaster')),roads:new RasterSlot($('roadsRaster'),true),bath:new RasterSlot($('bathRaster'))};map=new AtlasMap($('map'));wire();wireSession();wireOffline();wirePath();for(const w of [wireWcc,wireTeam,wirePhotos])try{w();}catch(e){console.error(e);}syncControls();renderFeatures();
+async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new RasterSlot($('photoRaster')),topo:new RasterSlot($('topoRaster')),roads:new RasterSlot($('roadsRaster'),true),bath:new RasterSlot($('bathRaster'))};map=new AtlasMap($('map'));wire();wireSession();wireOffline();wirePath();for(const w of [wireWcc,wireTeam,wirePhotos,wirePriv])try{w();}catch(e){console.error(e);}syncControls();renderFeatures();
  let proxyTries=0;const checkProxy=async()=>{if(!/^https?:$/.test(location.protocol)||networkProxy){proxyKnown=true;return;}try{const r=await fetchTimed(new URL('api/health',location.href),5000),j=await r.json();networkProxy=j.app==='orellana-atlas';}catch{}proxyKnown=true;map.render(true);
   // Si el servidor de la app no contesta (arranque en frío, cobertura), se vuelve a probar a los 8 y 30 s; mientras, las imágenes se piden directamente.
   if(!networkProxy&&proxyTries<2)setTimeout(checkProxy,[8000,30000][proxyTries++]);if(networkProxy){$('serverInfo').textContent='Servidor del atlas activo. Los catálogos oficiales se consultan a través de un proxy limitado a IGN e IDEEX.';
@@ -1169,7 +1248,7 @@ async function init(){slots={base:new RasterSlot($('baseRaster')),photo:new Rast
  updateBackupReminder();if(needsBackup())toast('Tienes puntos sin copia desde hace días. Pulsa «Guardar copia» y guárdala en Archivos o iCloud.');
  applySources();setTimeout(()=>{if(Object.values(slots).every(s=>!s.stats().loaded)){if(!alertDismissed){$('alertZoom').hidden=true;$('mapAlert').hidden=false;$('mapAlertText').textContent='La conexión está tardando o no está disponible. Comprueba Internet o revisa Más (⋯) › Conexión de los mapas.';}}},12000);
  // Read-only test surface. No synthetic map data is installed by the application.
- window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),tileQuery,tileKey,tileCache:()=>({off:tileCacheOff,slow:tileCacheSlow}),swVersion:()=>swVersion,openNotebook,nbChapter:()=>nbChapter,offZone:()=>offZone,photoCount:()=>photoKeys().then(k=>k.length),team:()=>team&&{room:team.room,me:team.me,name:team.name,until:team.until,rolling:!!team.rolling,err:team.err||'',sentAt:team.sentAt||0,members:teamMates().map(m=>({id:m.id,name:m.name,lost:!!m.lost,pos:Math.round(m.pos),coords:m.coords,age:Math.round(m.age)}))},wcc:()=>WCC&&{on:wcc.on,access:wcc.access,mine:wcc.mine,sel:wccSel?(wccSel.peg?.name||wccSel.item.name):null,route:wccRoute,pegs:WCC.pegs.length,zones:WCC.zones.filter(Boolean).length,gps:wccGpsText()?.t||null},reading:t=>readLines(t),water:()=>state.water.slice(),wccProg:t=>wccProgModel(t),wccZoneAt:c=>{const z=wccZoneAt(c);return z&&{area:z.area,peg:z.peg?.name||null};},down:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,Math.max(0,Math.round((s.downUntil||0)-performance.now()))])),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
+ window.OrellanaAtlas={version:'0.6',getScreen:()=>screen,project:xy,unproject:lonlat,distance,pathLength,destination,parseCapabilities,parseFeatureInfo,normalizeFeature:normalizedFeature,parseGPX,getState:()=>JSON.parse(JSON.stringify(state)),getView:()=>({center:map.center.slice(),zoom:map.zoom}),getGps:()=>gps&&{...gps,trail:gpsTrail.length,stale:gpsStale()},proxy:()=>({known:proxyKnown,on:networkProxy}),tileQuery,tileKey,tileCache:()=>({off:tileCacheOff,slow:tileCacheSlow}),swVersion:()=>swVersion,openNotebook,nbChapter:()=>nbChapter,offZone:()=>offZone,photoCount:()=>photoKeys().then(k=>k.length),team:()=>team&&{room:team.room,me:team.me,name:team.name,until:team.until,rolling:!!team.rolling,err:team.err||'',sentAt:team.sentAt||0,members:teamMates().map(m=>({id:m.id,name:m.name,lost:!!m.lost,pos:Math.round(m.pos),coords:m.coords,age:Math.round(m.age)}))},wcc:()=>WCC&&{on:wcc.on,access:wcc.access,mine:wcc.mine,sel:wccSel?(wccSel.peg?.name||wccSel.item.name):null,route:wccRoute,pegs:WCC.pegs.length,zones:WCC.zones.filter(Boolean).length,gps:wccGpsText()?.t||null},reading:t=>readLines(t),water:()=>state.water.slice(),wccProg:t=>wccProgModel(t),priv:()=>({on:privUi.on,opacity:privUi.opacity,layers:privLayers.map(l=>({id:l.id,name:l.name,w:l.w,h:l.h,zmax:l.zmax,bounds:l.bounds,cell:privCellM(l)})),depthAt:ll=>privLayers.map(l=>privDepthAt(l,ll))}),wccZoneAt:c=>{const z=wccZoneAt(c);return z&&{area:z.area,peg:z.peg?.name||null};},down:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,Math.max(0,Math.round((s.downUntil||0)-performance.now()))])),wakeHeld:()=>!!wakeLock,getStats:()=>Object.fromEntries(Object.entries(slots).map(([k,s])=>[k,s.stats()])),setView:(c,z)=>map.setView(c,z)};
 }
 init().catch(e=>{console.error(e);$('welcomeText').textContent='La aplicación no ha podido iniciarse. Abre el archivo en un navegador actualizado.';$('mapWelcome').hidden=false;toast('Error de inicio: '+(e.message||'desconocido'),true);});
 })();
