@@ -136,6 +136,20 @@ def main():
                 assert page.locator('#gpsBadge').is_visible() and 'Parado' in page.locator('#gpsMain').inner_text(), 'GPS badge missing'
                 page.locator('#locateBtn').click()
                 assert page.evaluate('window.OrellanaAtlas.getGps()') is None, 'GPS did not stop'
+                # Ocultar un spot: desaparece del mapa (no del archivo), queda en «Spots ocultos» y se puede volver a mostrar.
+                page.evaluate('window.OrellanaAtlas.setView(window.OrellanaAtlas.getState().features[0].geometry.coordinates, 17)')
+                page.wait_for_function("document.querySelectorAll('#vectors .point-marker').length === 1", timeout=5000)
+                page.locator('[data-go="spots"]').click()
+                page.locator('[data-hide-point]').first.click()
+                assert page.evaluate('window.OrellanaAtlas.getState().features[0].properties.hidden') is True and page.locator('details.hidden-spots').count() == 1, 'spot not hidden'
+                page.locator('[data-go="map"]').click()
+                page.wait_for_function("document.querySelectorAll('#vectors .point-marker').length === 0", timeout=5000)
+                page.locator('[data-go="spots"]').click()
+                page.locator('details.hidden-spots summary').click()
+                page.locator('details.hidden-spots [data-hide-point]').first.click()
+                assert page.evaluate('window.OrellanaAtlas.getState().features[0].properties.hidden') is False and page.locator('details.hidden-spots').count() == 0, 'spot not shown again'
+                page.locator('[data-go="map"]').click()
+                page.wait_for_function("document.querySelectorAll('#vectors .point-marker').length === 1", timeout=5000)
                 # Capa propia de fondo: importar una rejilla sintética, verla en el mapa, profundidad al tocar, 3D y borrado.
                 from test_priv_layer import synthetic_layer_bytes
                 page.locator('[data-go="spots"]').click()

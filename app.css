@@ -275,7 +275,7 @@ main{flex:1;min-height:0;position:relative;display:flex}
 .point-card{padding:13px 14px;border:1px solid var(--edge);border-radius:14px;margin:10px 0;background:linear-gradient(180deg,#15110c,#0e0c09)}
 .point-card h3{margin:0;font-family:var(--engraved);letter-spacing:.05em;font-size:15.5px;color:#efe6d2;overflow-wrap:anywhere}
 .point-card .meta{margin:8px 0;font-size:13.5px;color:var(--muted);line-height:1.65}
-.point-card .row button{font-size:13.5px;padding:6px 13px;min-height:42px}
+.point-card .row button{font-size:13.5px;padding:6px 13px;min-height:42px}.point-card.hidden-card{opacity:.62}details.hidden-spots{margin-top:12px}details.hidden-spots .inner .point-card{margin:10px 0 0}.spot-hide{min-height:36px;padding:4px 10px;font-size:13px;align-self:center;white-space:nowrap}
 .catch-card.lost h3,.catch-card.missed h3{color:var(--muted)}
 .empty{border:1px dashed var(--edge);border-radius:14px;padding:22px 16px;text-align:center;color:var(--muted);font-size:13.5px;line-height:1.7;margin:12px 0}
 .empty svg{margin:0 auto 10px;color:var(--accent);width:30px;height:30px}
