@@ -1113,11 +1113,11 @@ const privToday=(l,z)=>z-privLevel(l);
 const privFmtToday=(l,z)=>{const t=privToday(l,z);return t<=0?`en seco (${privFmt(-t)} m por encima del agua)`:`${privFmt(t)} m`;};
 function privColor(t){if(t<=PRIV_STOPS[0][0])return PRIV_STOPS[0][1];for(let i=1;i<PRIV_STOPS.length;i++){const [d1,c1]=PRIV_STOPS[i],[d0,c0]=PRIV_STOPS[i-1];if(t<=d1){const u=(t-d0)/(d1-d0);return [c0[0]+(c1[0]-c0[0])*u,c0[1]+(c1[1]-c0[1])*u,c0[2]+(c1[2]-c0[2])*u];}}return PRIV_STOPS[PRIV_STOPS.length-1][1];}
 function privShade(gx,gy){const nl=Math.hypot(gx,gy,1);return clamp(0.45+0.6*((gx/nl)*-0.5+(gy/nl)*-0.6+(1/nl)*0.62),0.35,1.05);}
-// Imagen de la capa a 3× con interpolación: color por fondo de hoy y sombreado. Con «relieve realzado», luz desde tres lados, la curvatura
+// Imagen de la capa interpolada (a 3× si las celdas son gruesas, 2× o 1× si son finas): color por fondo de hoy y sombreado. Con «relieve realzado», luz desde tres lados, la curvatura
 // transversal (cauces y vaguadas hacia verde azulado oscuro, lomas y espolones más claros), los llanos algo más luminosos y bandas alternas
 // cada metro, para que los cambios pequeños se lean de un vistazo. Tierra, sin dato y lo que hoy está en seco quedan transparentes.
 function privImage(l){const night=document.documentElement.classList.contains('night'),rel=!!privUi.relief,key=`${l.id}:${privLevel(l)}:${night?'n':'d'}:${rel?'r':'p'}`;if(privUrls.has(key))return privUrls.get(key);if(privPending.has(key))return '';privPending.add(key);
- const U=3,W=l.w*U,H=l.h*U,c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d'),img=ctx.createImageData(W,H),px=img.data,cell=privCellM(l)/U,lev=privLevel(l),Z=new Float32Array(W*H),EX=rel?3.5:2.5,rf=rel?privRelief(l):null;
+ const cm=privCellM(l),U=Math.max(1,Math.min(cm>=1.7?3:cm>=1?2:1,Math.floor(Math.sqrt(4.5e6/(l.w*l.h))))),W=l.w*U,H=l.h*U,c=document.createElement('canvas');c.width=W;c.height=H;const ctx=c.getContext('2d'),img=ctx.createImageData(W,H),px=img.data,cell=cm/U,lev=privLevel(l),Z=new Float32Array(W*H),EX=rel?3.5:2.5,rf=rel?privRelief(l):null;
  for(let v=0;v<H;v++)for(let u=0;u<W;u++){const s=privSample(l,(u+.5)/U,(v+.5)/U);Z[v*W+u]=s===null?NaN:s;}
  const at=(u,v,z)=>{const q=Z[clamp(v,0,H-1)*W+clamp(u,0,W-1)];return isNaN(q)?z:q;};
  for(let v=0;v<H;v++)for(let u=0;u<W;u++){const k=v*W+u,z=Z[k];if(isNaN(z))continue;const t=z-lev;if(t<=0)continue;
@@ -1130,22 +1130,27 @@ function privImage(l){const night=document.documentElement.classList.contains('n
   if(night){const lum=0.3*r+0.59*g+0.11*b;r=lum;g=lum*.12;b=lum*.12;}px[k*4]=r*sh;px[k*4+1]=g*sh;px[k*4+2]=b*sh;px[k*4+3]=255;}
  ctx.putImageData(img,0,0);c.toBlob(b=>{privPending.delete(key);if(b){privUrls.set(key,URL.createObjectURL(b));map?.render(false);}},'image/png');return '';}
 function privForget(id){for(const [k,u] of [...privUrls])if(k.startsWith(id+':')){URL.revokeObjectURL(u);privUrls.delete(k);}for(const k of [...privCont.keys()])if(k.startsWith(id+':'))privCont.delete(k);privGrids.delete(id);privReliefs.delete(id);}
-// Curvas de nivel (marching squares) enlazadas en polilíneas y simplificadas, en coordenadas de rejilla; una vez por capa y nivel.
-function privIsoline(l,L){const g=privGrid(l),w=l.w,h=l.h,pts=new Map(),adj=new Map();const hid=(i,j)=>(j*w+i)*2,vid=(i,j)=>(j*(w+1)+i)*2+1;
- const link=(a,b)=>{(adj.get(a)||adj.set(a,[]).get(a)).push(b);(adj.get(b)||adj.set(b,[]).get(b)).push(a);};
+// Curvas de nivel (marching squares) enlazadas en polilíneas y simplificadas, en coordenadas de rejilla. Todos los niveles de un
+// paso se sacan en una sola pasada por la rejilla: cada celda solo mira los niveles comprendidos entre sus cuatro esquinas.
+function privIsolines(l,levels){const g=privGrid(l),w=l.w,h=l.h,nL=levels.length,pts=levels.map(()=>new Map()),adj=levels.map(()=>new Map());const hid=(i,j)=>(j*w+i)*2,vid=(i,j)=>(j*(w+1)+i)*2+1;
+ const link=(A,a,b)=>{(A.get(a)||A.set(a,[]).get(a)).push(b);(A.get(b)||A.set(b,[]).get(b)).push(a);};
+ const lower=v=>{let lo=0,hi=nL;while(lo<hi){const m=(lo+hi)>>1;if(levels[m]<=v)lo=m+1;else hi=m;}return lo;};   // primer nivel > v
  for(let j=0;j<h-1;j++)for(let i=0;i<w-1;i++){const z00=g[j*w+i],z10=g[j*w+i+1],z01=g[(j+1)*w+i],z11=g[(j+1)*w+i+1];if(isNaN(z00)||isNaN(z10)||isNaN(z01)||isNaN(z11))continue;
-  const m=(z00>=L?1:0)|(z10>=L?2:0)|(z11>=L?4:0)|(z01>=L?8:0);if(m===0||m===15)continue;
-  const T=()=>{const id=hid(i,j);if(!pts.has(id))pts.set(id,[i+(L-z00)/(z10-z00),j]);return id;},B=()=>{const id=hid(i,j+1);if(!pts.has(id))pts.set(id,[i+(L-z01)/(z11-z01),j+1]);return id;},Lf=()=>{const id=vid(i,j);if(!pts.has(id))pts.set(id,[i,j+(L-z00)/(z01-z00)]);return id;},Rt=()=>{const id=vid(i+1,j);if(!pts.has(id))pts.set(id,[i+1,j+(L-z10)/(z11-z10)]);return id;};
-  switch(m){case 1:case 14:link(Lf(),T());break;case 2:case 13:link(T(),Rt());break;case 3:case 12:link(Lf(),Rt());break;case 4:case 11:link(Rt(),B());break;case 6:case 9:link(T(),B());break;case 7:case 8:link(Lf(),B());break;
-   case 5:case 10:{const inside=(z00+z10+z01+z11)/4>=L;if((m===5)===inside){link(T(),Rt());link(Lf(),B());}else{link(Lf(),T());link(Rt(),B());}break;}}}
- const seen=new Set(),lines=[];const walk=start=>{const line=[];let cur=start,prev=-1;while(cur!==undefined&&!seen.has(cur)){seen.add(cur);line.push(pts.get(cur));const nb=adj.get(cur)||[];let nx;for(const q of nb)if(q!==prev&&!seen.has(q)){nx=q;break;}prev=cur;cur=nx;}return line;};
- for(const [id,nb] of adj)if(nb.length===1&&!seen.has(id)){const ln=walk(id);if(ln.length>1)lines.push(ln);}
- for(const id of adj.keys())if(!seen.has(id)){const ln=walk(id);if(ln.length>2){ln.push(ln[0]);lines.push(ln);}}
- return lines.map(ln=>privSimplify(ln,.22)).filter(ln=>ln.length>1);}
+  const zmin=Math.min(z00,z10,z01,z11),zmax=Math.max(z00,z10,z01,z11);if(zmin===zmax)continue;
+  for(let k=lower(zmin);k<nL&&levels[k]<=zmax;k++){const L=levels[k],P=pts[k],A=adj[k];
+   const m=(z00>=L?1:0)|(z10>=L?2:0)|(z11>=L?4:0)|(z01>=L?8:0);if(m===0||m===15)continue;
+   const T=()=>{const id=hid(i,j);if(!P.has(id))P.set(id,[i+(L-z00)/(z10-z00),j]);return id;},B=()=>{const id=hid(i,j+1);if(!P.has(id))P.set(id,[i+(L-z01)/(z11-z01),j+1]);return id;},Lf=()=>{const id=vid(i,j);if(!P.has(id))P.set(id,[i,j+(L-z00)/(z01-z00)]);return id;},Rt=()=>{const id=vid(i+1,j);if(!P.has(id))P.set(id,[i+1,j+(L-z10)/(z11-z10)]);return id;};
+   switch(m){case 1:case 14:link(A,Lf(),T());break;case 2:case 13:link(A,T(),Rt());break;case 3:case 12:link(A,Lf(),Rt());break;case 4:case 11:link(A,Rt(),B());break;case 6:case 9:link(A,T(),B());break;case 7:case 8:link(A,Lf(),B());break;
+    case 5:case 10:{const inside=(z00+z10+z01+z11)/4>=L;if((m===5)===inside){link(A,T(),Rt());link(A,Lf(),B());}else{link(A,Lf(),T());link(A,Rt(),B());}break;}}}}
+ return levels.map((L,k)=>{const P=pts[k],A=adj[k],seen=new Set(),lines=[];const walk=start=>{const line=[];let cur=start,prev=-1;while(cur!==undefined&&!seen.has(cur)){seen.add(cur);line.push(P.get(cur));const nb=A.get(cur)||[];let nx;for(const q of nb)if(q!==prev&&!seen.has(q)){nx=q;break;}prev=cur;cur=nx;}return line;};
+  for(const [id,nb] of A)if(nb.length===1&&!seen.has(id)){const ln=walk(id);if(ln.length>1)lines.push(ln);}
+  for(const id of A.keys())if(!seen.has(id)){const ln=walk(id);if(ln.length>2){ln.push(ln[0]);lines.push(ln);}}
+  return lines.map(ln=>privSimplify(ln,.22)).filter(ln=>ln.length>1);});}
+function privIsoline(l,L){return privIsolines(l,[L])[0];}
 function privSimplify(pts,tol){if(pts.length<3)return pts;const keep=new Uint8Array(pts.length),n=pts.length-1,closed=pts[0][0]===pts[n][0]&&pts[0][1]===pts[n][1],mid=Math.floor(n/2);keep[0]=keep[n]=1;const st=closed?[[0,mid],[mid,n]]:[[0,n]];if(closed)keep[mid]=1;
  while(st.length){const [a,b]=st.pop();let far=0,fi=-1;const ax=pts[a][0],ay=pts[a][1],dx=pts[b][0]-ax,dy=pts[b][1]-ay,len=Math.hypot(dx,dy)||1;for(let i=a+1;i<b;i++){const d=Math.abs((pts[i][0]-ax)*dy-(pts[i][1]-ay)*dx)/len;if(d>far){far=d;fi=i;}}if(far>tol&&fi>0){keep[fi]=1;st.push([a,fi],[fi,b]);}}
  return pts.filter((p,i)=>keep[i]);}
-function privContours(l,step){const key=`${l.id}:${privLevel(l)}:${step}`;let c=privCont.get(key);if(c)return c;c=[];const lev=privLevel(l);for(let t=step;lev+t<=l.zmax;t+=step)c.push({today:t,lines:privIsoline(l,lev+t)});if(lev>0)c.unshift({today:0,lines:privIsoline(l,lev)});privCont.set(key,c);return c;}
+function privContours(l,step){const key=`${l.id}:${privLevel(l)}:${step}`;let c=privCont.get(key);if(c)return c;const lev=privLevel(l),todays=[];if(lev>0)todays.push(0);for(let t=step;lev+t<=l.zmax;t+=step)todays.push(t);const all=privIsolines(l,todays.map(t=>lev+t));c=todays.map((t,k)=>({today:t,lines:all[k]}));privCont.set(key,c);return c;}
 function privVectors(){if(!privUi.on||!map||!privLayers.length)return '';let s='';const z=map.zoom,step=z>=17.5&&privUi.relief?.5:z>=17?1:z>=16?2:z>=15?5:0,placed=[];
  for(const l of privLayers){const [W,S,E,N]=l.bounds,a=map.project([W,N]),b=map.project([E,S]);if(b[0]<-50||a[0]>map.width+50||b[1]<-50||a[1]>map.height+50)continue;const u=privImage(l);
   if(u)s+=`<image href="${u}" x="${a[0].toFixed(1)}" y="${a[1].toFixed(1)}" width="${(b[0]-a[0]).toFixed(1)}" height="${(b[1]-a[1]).toFixed(1)}" preserveAspectRatio="none" opacity="${(privUi.opacity/100).toFixed(2)}"/>`;
@@ -1247,7 +1252,7 @@ function m4look(e,c,up){const z=[e[0]-c[0],e[1]-c[1],e[2]-c[2]],zl=Math.hypot(..
  return new Float32Array([x[0],y[0],z[0],0,x[1],y[1],z[1],0,x[2],y[2],z[2],0,-(x[0]*e[0]+x[1]*e[1]+x[2]*e[2]),-(y[0]*e[0]+y[1]*e[1]+y[2]*e[2]),-(z[0]*e[0]+z[1]*e[1]+z[2]*e[2]),1]);}
 function p3Shader(gl,vs,fs){const mk=(t,src)=>{const s=gl.createShader(t);gl.shaderSource(s,src);gl.compileShader(s);if(!gl.getShaderParameter(s,gl.COMPILE_STATUS))throw Error(gl.getShaderInfoLog(s)||'shader');return s;};const p=gl.createProgram();gl.attachShader(p,mk(gl.VERTEX_SHADER,vs));gl.attachShader(p,mk(gl.FRAGMENT_SHADER,fs));gl.linkProgram(p);if(!gl.getProgramParameter(p,gl.LINK_STATUS))throw Error(gl.getProgramInfoLog(p)||'program');return p;}
 // Malla: rejilla suavizada (3×3 dos veces) en metros, con el gradiente por vértice para las normales y la curvatura transversal para el realce; tus puntos y el puesto como mástiles.
-function p3Mesh(l,gl){const g0=privGrid(l),rf=privRelief(l),w0=l.w,h0=l.h,step=Math.max(1,Math.ceil(Math.max(w0,h0)/330)),w=Math.floor(w0/step),h=Math.floor(h0/step),cell=privCellM(l)*step,n=w*h;
+function p3Mesh(l,gl){const g0=privGrid(l),rf=privRelief(l),w0=l.w,h0=l.h,step=Math.max(1,Math.ceil(Math.max(w0,h0)/540)),w=Math.floor(w0/step),h=Math.floor(h0/step),cell=privCellM(l)*step,n=w*h;
  const D=new Float32Array(n),LAND=new Float32Array(n),HOLE=new Uint8Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){const k0=(j*step)*w0+i*step,v=g0[k0];const k=j*w+i;if(isNaN(v)){if(privLand(l,k0)){LAND[k]=1;D[k]=0;}else{HOLE[k]=1;D[k]=0;}}else D[k]=v;}
  for(let j=0;j<h;j++)for(let i=0;i<w;i++)if(LAND[j*w+i]||HOLE[j*w+i]){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=i+di,jj=j+dj;if(ii<0||jj<0||ii>=w||jj>=h)continue;const k=jj*w+ii;if(!LAND[k]&&!HOLE[k]){s+=D[k];c++;}}D[j*w+i]=c?s/c*(HOLE[j*w+i]?1:.5):0;}
  let S=D;for(let pass=0;pass<2;pass++){const T=new Float32Array(n);for(let j=0;j<h;j++)for(let i=0;i<w;i++){let s=0,c=0;for(let dj=-1;dj<=1;dj++)for(let di=-1;di<=1;di++){const ii=clamp(i+di,0,w-1),jj=clamp(j+dj,0,h-1),k=jj*w+ii;if(LAND[k]===LAND[j*w+i]&&(!HOLE[k]||HOLE[j*w+i])){s+=S[k];c++;}}T[j*w+i]=c?s/c:S[j*w+i];}S=T;}
