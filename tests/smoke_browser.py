@@ -152,10 +152,13 @@ def main():
                 page.evaluate(f'window.OrellanaAtlas.setView([{(b[0] + b[2]) / 2}, {(b[1] + b[3]) / 2}], 17)')
                 page.wait_for_function("window.OrellanaAtlas.priv().contours() > 5", timeout=5000)
                 assert page.locator('#vectors text.priv-z').count() >= 1, 'contour labels missing'
+                assert page.evaluate('window.OrellanaAtlas.priv().relief') is True and page.evaluate('window.OrellanaAtlas.priv().setRelief(false)') is False and page.evaluate('window.OrellanaAtlas.priv().setRelief(true)') is True, 'relief toggle broken'
                 lid = priv['layers'][0]['id']
                 assert page.evaluate(f'window.OrellanaAtlas.priv().setLevel({lid!r}, 2)') and page.evaluate('window.OrellanaAtlas.priv().layers[0].level') == 2, 'level not set'
                 prof = page.evaluate(f'window.OrellanaAtlas.priv().profile([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
-                assert prof['len'] > 300 and max(v for v in prof['z'] if v is not None) > 10 and prof['level'] == 2, f'profile wrong: {prof["len"]}'
+                assert prof['len'] > 300 and max(v for v in prof['z'] if v is not None) > 10 and prof['level'] == 2 and prof['cell'] > 0 and len(prof['land']) == len(prof['z']), f'profile wrong: {prof["len"]}'
+                feats = page.evaluate(f'window.OrellanaAtlas.priv().features([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
+                assert isinstance(feats, list) and all('k' in f and 'i' in f for f in feats), f'profile features wrong: {feats}'
                 page.locator('[data-go="spots"]').click()
                 page.locator('[data-priv-three]').first.click()
                 page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300 && window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0", timeout=5000)
