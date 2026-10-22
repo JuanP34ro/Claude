@@ -163,6 +163,12 @@ def main():
                 page.locator('[data-priv-three]').first.click()
                 page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300 && window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0", timeout=5000)
                 three = page.evaluate('window.OrellanaAtlas.priv().three()')
+                if three['mode'] == 'gl':
+                    assert page.evaluate("window.OrellanaAtlas.priv().three().preset('cenital')") == 'orbit', '3D preset failed'
+                    hit = page.evaluate("(() => { const c = document.getElementById('priv3d'); return window.OrellanaAtlas.priv().three().pick(c.clientWidth / 2, c.clientHeight / 2); })()")
+                    assert hit and hit['depth'] > 0, f'3D pick failed: {hit}'
+                    assert page.evaluate("window.OrellanaAtlas.priv().three().pan(30, 10)") and page.evaluate("window.OrellanaAtlas.priv().three().water(-1)") == -1, '3D pan or water failed'
+                    assert page.evaluate("window.OrellanaAtlas.priv().three().preset('puesto')") in ('eye', None), '3D eye view failed'
                 assert three['mode'] in ('gl', '2d'), f'3D mode {three}'
                 page.locator('#privDialog .close-dialog').click()
                 page.reload(wait_until='domcontentloaded')
