@@ -170,13 +170,13 @@ def main():
                 lid = priv['layers'][0]['id']
                 # Una capa más en «Capas»: elegir cuál se muestra y ponerla en la cortina del plano (el plano pasa a la derecha).
                 page.locator('#layersPill').click()
-                assert page.locator('#privLayerSection').is_visible() and page.locator('#privSelect option').count() == 1 and page.evaluate('window.OrellanaAtlas.priv().active') == lid, 'private layer missing from the layers sheet'
+                assert page.locator('#privLayerSection').is_visible() and page.locator('#privLayersList input').count() == 1 and page.evaluate('window.OrellanaAtlas.priv().shown') == [lid], 'private layer missing from the layers sheet'
                 assert page.locator('[data-curtain="priv"]').is_visible() and page.evaluate('window.OrellanaAtlas.priv().inCurtain') is False, 'curtain choice missing'
                 page.locator('[data-curtain="priv"]').click()
                 clip = page.evaluate("document.getElementById('topoRaster').style.clipPath").replace('px', '')
                 assert page.evaluate('window.OrellanaAtlas.priv().inCurtain') is True and page.locator('#swipe').is_visible() and clip.startswith('inset(0 0 0 '), f'curtain with the private layer not applied: {clip}'
                 page.wait_for_function("document.getElementById('historicLabel').textContent.includes('Fondo propio')", timeout=3000)
-                assert page.evaluate(f'window.OrellanaAtlas.priv().setActive({lid!r})') is True and page.evaluate('window.OrellanaAtlas.priv().setActive("nope")') is False, 'active layer selection broken'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().setShown({lid!r}, true)') is True and page.evaluate('window.OrellanaAtlas.priv().setShown("nope", true)') is False, 'layer visibility selection broken'
                 page.locator('[data-curtain="topo"]').click()
                 assert page.evaluate('window.OrellanaAtlas.priv().inCurtain') is False and page.evaluate("document.getElementById('topoRaster').style.clipPath").replace('px', '').startswith('inset(0 '), 'curtain did not go back to the plan'
                 page.locator('#layersClose').click()
@@ -204,6 +204,8 @@ def main():
                 page.locator('[data-go="spots"]').click()
                 page.locator('#privIn').set_input_files({'name': 'pruebaB.json', 'mimeType': 'application/json', 'buffer': _json.dumps(second).encode()})
                 page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 2', timeout=15000)
+                assert len(page.evaluate('window.OrellanaAtlas.priv().shown')) == 2, 'a new layer must be shown by default'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().setShown({lid!r}, false)') is True and len(page.evaluate('window.OrellanaAtlas.priv().shown')) == 1, 'hiding a layer failed'
                 extras = page.evaluate(f'window.OrellanaAtlas.priv().profileExtras([{b[0] + (b[2] - b[0]) * 0.1}, {(b[1] + b[3]) / 2}], [{b[0] + (b[2] - b[0]) * 0.7}, {(b[1] + b[3]) / 2}])')
                 assert len(extras['others']) == 1 and extras['others'][0]['n'] > 10 and abs(abs(extras['others'][0]['diff']) - 2) < 0.05 and isinstance(extras['spots'], list) and isinstance(extras['rods'], list), f'profile comparison wrong: {extras}'
                 # El cursor del gráfico se muestra de verdad (el grupo SVG no tiene la propiedad «hidden» de HTML).
@@ -215,6 +217,7 @@ def main():
                 page.once('dialog', lambda d: d.accept())
                 page.locator('[data-priv-del]').nth(1).click()
                 page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 1', timeout=5000)
+                assert page.evaluate(f'window.OrellanaAtlas.priv().setShown({lid!r}, true)') is True and page.evaluate('window.OrellanaAtlas.priv().shown') == [lid]
                 page.locator('[data-priv-three]').first.click()
                 page.wait_for_function("document.getElementById('privDialog').open && document.getElementById('priv3d').width > 300 && window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0", timeout=5000)
                 three = page.evaluate('window.OrellanaAtlas.priv().three()')
@@ -295,7 +298,7 @@ def main():
                 assert [e['kind'] for e in events][-1:] == ['catch'] and events[-1]['kg'] == 12.5, events
                 assert page.locator('#timelineList li').count() >= 1 and page.locator('#exportTimeline').is_visible(), 'Timeline not rendered'
                 # WCC 2026 programme: countdown card in Diario, the same model at fixed times, the agenda dialog and a venue on the map
-                model = page.evaluate('window.OrellanaAtlas.wccProg()')
+                model = page.evaluate('window.OrellanaAtlas.wccProg(undefined, true)')   # re-render first: the countdown text changes every minute
                 if model:
                     assert page.locator('#wccProg').is_visible() and page.locator('#wccProgMain').inner_text() == model['main'], model
                 else:
