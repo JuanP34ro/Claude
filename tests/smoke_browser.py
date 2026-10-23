@@ -237,6 +237,41 @@ def main():
                 page.once('dialog', lambda d: d.accept())   # «¿Borrar esta capa…?»
                 page.locator('[data-priv-del]').first.click()
                 page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 0', timeout=5000)
+                # Paquete del fondo («cfn-fondo»): importar uno sintético, verlo por teselas, leer al tocar, perfil, 3D de lo que ves, persistencia y borrado.
+                from test_cfn_fondo import synthetic_pack_bytes, SYNTH_BOUNDS
+                page.locator('#privIn').set_input_files({'name': 'prueba.cfnfondo', 'mimeType': 'application/octet-stream', 'buffer': synthetic_pack_bytes()})
+                page.wait_for_function('window.OrellanaAtlas.priv().pack && window.OrellanaAtlas.priv().pack.tiles === 13', timeout=15000)
+                pk = page.evaluate('window.OrellanaAtlas.priv().pack')
+                assert pk['levels'] == 2 and pk['grid'] == [96, 96] and page.evaluate('window.OrellanaAtlas.priv().shown') == ['pack'], f'pack not imported: {pk}'
+                assert page.locator('#privLayersList input[data-priv-show="pack"]').count() == 1 and page.locator('[data-pack-del]').count() == 1, 'pack missing from Capas or Spots'
+                W, S, E, N = SYNTH_BOUNDS
+                mid = [W + (E - W) * 0.42, (S + N) / 2]
+                page.wait_for_function('window.OrellanaAtlas.getScreen() === "map" && window.OrellanaAtlas.priv().drawn().tiles > 0', timeout=8000)
+                z = page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{mid[0]}, {mid[1]}])')
+                assert z and z['kind'] == 1 and 15 < z['z'] <= 18.1 and z['L'] == 0, f'pack reading wrong: {z}'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{W + (E - W) * 0.97}, {mid[1]}])')['kind'] == 2, 'land cell must read as land'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{W + (E - W) * 0.03}, {N - (N - S) * 0.03}])')['kind'] == 3, 'unsurveyed cell must read as kind 3'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{mid[0]}, {mid[1]}])') is True, 'tap on the pack not handled'
+                page.wait_for_function("!document.getElementById('privSheet').hidden && window.OrellanaAtlas.priv().mark()", timeout=3000)
+                assert 'Fondo' in page.locator('#privSheetTitle').inner_text(), 'pack reading sheet wrong'
+                page.locator('#privSheetClose').click()
+                page.wait_for_function("document.getElementById('privSheet').hidden", timeout=3000)
+                page.wait_for_function('window.OrellanaAtlas.priv().contours() > 3 && window.OrellanaAtlas.priv().drawn().pending === 0', timeout=8000)
+                assert page.evaluate(f'window.OrellanaAtlas.priv().profileOpen([{W + (E - W) * 0.1}, {mid[1]}], [{W + (E - W) * 0.7}, {mid[1]}])') is True, 'pack profile dialog did not open'
+                prof = page.evaluate(f'window.OrellanaAtlas.priv().profile([{W + (E - W) * 0.1}, {mid[1]}], [{W + (E - W) * 0.7}, {mid[1]}])')
+                assert max(v for v in prof['z'] if v is not None) > 10 and abs(prof['cell'] - 1.4) < 0.01, f'pack profile wrong: {prof["len"]} {prof["cell"]}'
+                page.locator('#privProfileDialog .close-dialog').click()
+                assert page.evaluate('window.OrellanaAtlas.priv().setLevel("pack", 2)') and page.evaluate('window.OrellanaAtlas.priv().pack.level') == 2, 'pack level not set'
+                assert page.evaluate('window.OrellanaAtlas.priv().packThree()') is True, '3D of the visible pack did not open'
+                page.wait_for_function('window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0', timeout=5000)
+                page.locator('#privDialog .close-dialog').click()
+                page.reload(wait_until='domcontentloaded')
+                page.wait_for_function('window.OrellanaAtlas && window.OrellanaAtlas.priv().pack && window.OrellanaAtlas.priv().pack.level === 2', timeout=10000)
+                assert 'cfn-fondo' not in page.evaluate('JSON.stringify(window.OrellanaAtlas.getState())'), 'the pack leaked into the saved state'
+                page.locator('[data-go="spots"]').click()
+                page.once('dialog', lambda d: d.accept())   # «¿Borrar el paquete…?»
+                page.locator('[data-pack-del]').click()
+                page.wait_for_function('window.OrellanaAtlas.priv().pack === null', timeout=5000)
                 page.locator('[data-go="map"]').click()
                 # WCC 2026 (capa temporal del concurso): búsqueda, ficha, «Es mi puesto» y zona desde el GPS.
                 page.locator('#layersPill').click()
