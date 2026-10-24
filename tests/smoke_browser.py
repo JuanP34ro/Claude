@@ -254,6 +254,9 @@ def main():
                 gd = page.evaluate(f'window.OrellanaAtlas.priv().gpsDepth([{mid[0]}, {mid[1]}], 90)')
                 assert gd and gd.startswith('Fondo aquí') and ' m' in gd and '30 m adelante' in gd and '(carta)' in gd, f'GPS depth text wrong: {gd}'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().gpsDepth([{W + (E - W) * 0.97}, {mid[1]}])') is None, 'GPS depth on land must be empty'
+                rd = page.evaluate(f'window.OrellanaAtlas.priv().rodDepthAt([{mid[0]}, {mid[1]}])')
+                assert rd.startswith('carta ') and rd.endswith('(sin nivel)'), f'rod depth text wrong: {rd}'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().rodDepthAt([{W + (E - W) * 0.97}, {mid[1]}])') == '', 'rod depth on land must be empty'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{mid[0]}, {mid[1]}])') is True, 'tap on the pack not handled'
                 page.wait_for_function("!document.getElementById('privSheet').hidden && window.OrellanaAtlas.priv().mark()", timeout=3000)
                 assert 'Fondo' in page.locator('#privSheetTitle').inner_text(), 'pack reading sheet wrong'
