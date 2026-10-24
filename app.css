@@ -782,11 +782,11 @@ html.night .gps-badge small.gps-wcc,html.night .gps-badge.stale strong,html.nigh
 .fan-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}.fan-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}.fan-list li:last-child{border-bottom:0}.fan-list li b{font-weight:700}.fan-list li small{display:block;color:var(--c-muted);margin-top:2px}
 html.night #fanCanvas{background:#120404}html.night .fan-north{color:var(--nr)}
 /* Capas plegables: el título pliega el apartado y, plegado, resume lo que está puesto */
-.layers-sheet .section.grp .section-title{cursor:pointer;user-select:none;-webkit-user-select:none}
-.layers-sheet .section.grp .section-title::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-left:auto;opacity:.65;flex:none;transition:transform .2s}
-.layers-sheet .section.grp.collapsed .section-title::after{transform:rotate(-45deg)}
-.layers-sheet .section.grp.collapsed>*:not(.section-row):not(.section-title){display:none}
-.layers-sheet .section.grp.collapsed{margin-bottom:0}.layers-sheet .section.grp.collapsed .section-row{margin-bottom:4px}
+.section.grp .section-title{cursor:pointer;user-select:none;-webkit-user-select:none}
+.section.grp .section-title::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-left:auto;opacity:.65;flex:none;transition:transform .2s}
+.section.grp.collapsed .section-title::after{transform:rotate(-45deg)}
+.section.grp.collapsed>*:not(.section-row):not(.section-title){display:none}
+.section.grp.collapsed{margin-bottom:0}.section.grp.collapsed .section-row{margin-bottom:4px}
 .grp-sum{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%;margin-left:4px}
 .section-row .section-title{min-width:0;flex:1}
 /* Explicaciones largas plegadas tras «Cómo funciona» */
@@ -797,3 +797,46 @@ details.how{margin:8px 0 10px;border:0;padding:0}details.how summary{list-style:
 .priv-list details.more{display:inline-block}.priv-list details.more>summary{list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;padding:4px 12px;border:1px solid #5a4a33;border-radius:10px;color:var(--muted)}
 .priv-list details.more>summary::-webkit-details-marker{display:none}.priv-list details.more>summary::after{content:" ▾";font-size:11px;margin-left:4px}.priv-list details.more[open]>summary{color:var(--accent)}
 .priv-list details.more[open]{display:block;width:100%}.priv-list details.more>.team-acts{margin-top:8px;padding-top:8px;border-top:1px dashed #3b3225}
+
+/* Mapa más limpio: la pista «Tu mapa» no se superpone a una hoja, al menú + ni a un diálogo */
+#mapShell:has(.sheet:not([hidden]),.spot-sheet:not([hidden])) .map-hint,#mapShell.fab-open .map-hint,body:has(dialog[open]) .map-hint{display:none}
+/* Grupos «Ajustes» al final de Cañas y Spots: mismo plegado que Capas */
+.screen .section.grp.collapsed{padding-bottom:12px;border-bottom:0}
+.screen .section.grp .section-title{margin-bottom:0}.screen .section.grp:not(.collapsed) .section-title{margin-bottom:12px}
+/* Formulario de punto: campos poco usados tras «Más detalles» */
+details.more-fields{border:0;margin:2px 0 0;padding:0}
+details.more-fields>summary{list-style:none;cursor:pointer;display:flex;align-items:center;gap:8px;min-height:44px;padding:8px 0;font-size:14px;color:var(--accent);border-top:1px solid var(--line);white-space:nowrap}
+details.more-fields>summary::-webkit-details-marker{display:none}
+details.more-fields>summary::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-left:auto;opacity:.7;flex:none;transition:transform .2s}
+details.more-fields[open]>summary::after{transform:rotate(-135deg)}
+details.more-fields>summary small{color:var(--muted);font-size:12px;font-weight:400;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0;flex:1 1 auto}
+details.more-fields>.body{padding-top:10px}
+/* Tiempo: dos fichas grandes arriba */
+.wx-hero{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin:0 0 18px}
+.wx-hero>.note{grid-column:1/-1;margin:0}
+.wx-card{position:relative;overflow:hidden;display:flex;flex-direction:column;gap:5px;min-height:168px;padding:13px 14px 12px;border:1px solid #6b5636;border-radius:18px;background:radial-gradient(130% 90% at 100% 0%,#2b2215 0%,#171209 46%,#0c0a07 100%);box-shadow:0 10px 30px #0008,inset 0 1px 0 #ffffff12}
+.wx-card::after{content:"";position:absolute;inset:0;border-radius:inherit;background:linear-gradient(180deg,#e2c5871c,transparent 38%);pointer-events:none}
+.wx-card-empty{grid-column:1/-1;min-height:0}
+.wx-kicker{font-family:var(--engraved);font-size:10.5px;letter-spacing:.22em;text-transform:uppercase;color:var(--accent);display:flex;align-items:center;gap:7px}
+.wx-kicker::after{content:"";flex:1;height:1px;background:linear-gradient(90deg,#c9a45c88,transparent)}
+.wx-val{font-family:var(--engraved);font-size:40px;line-height:1.05;font-weight:600;font-variant-numeric:lining-nums tabular-nums;white-space:nowrap;background:var(--gold-grad);-webkit-background-clip:text;background-clip:text;color:transparent;-webkit-text-fill-color:transparent;padding-bottom:2px}
+.wx-val small{font-family:var(--sans);font-size:13px;font-weight:600;letter-spacing:.04em;color:var(--muted);-webkit-text-fill-color:var(--muted);margin-left:3px}
+.wx-card .wx-main{font-size:14.5px;font-weight:700;color:var(--text);line-height:1.3}
+.wx-card .wx-sub{font-size:12.5px;color:var(--muted);line-height:1.45}
+.wx-card.alert{border-color:var(--warm);box-shadow:0 10px 30px #0008,0 0 0 1px #cf8b4f2e,inset 0 1px 0 #ffffff12}
+.wx-card.alert .wx-main{color:var(--warm)}
+.wx-windrow{display:flex;align-items:center;gap:8px;margin:2px 0}
+.wx-dial{flex:none;width:66px;height:66px}
+.wx-dial .ring{fill:#0b0a08;stroke:#5a4a33;stroke-width:1}
+.wx-dial .tick{stroke:#8a6d3b;stroke-width:1.2}
+.wx-dial .shore{fill:none;stroke:var(--warm);stroke-width:4;stroke-linecap:round}
+.wx-dial .arrow{fill:url(#wxdg);stroke:#f3ead6;stroke-width:.6;stroke-linejoin:round}
+.wx-dial .tail{stroke:#c9a45c;stroke-width:2.2;stroke-linecap:round}
+.wx-dial .n{font:700 9px var(--sans);fill:var(--accent)}
+.wx-spark{width:100%;height:44px;display:block;margin-top:auto;overflow:visible}
+.wx-spark .area{fill:url(#wxsg)}.wx-spark .past{fill:none;stroke:#e2c587;stroke-width:1.7;stroke-linejoin:round;vector-effect:non-scaling-stroke}.wx-spark .next{fill:none;stroke:#e2c587;stroke-width:1.3;stroke-dasharray:3 3;opacity:.7;vector-effect:non-scaling-stroke}.wx-spark .now{stroke:#efe6d2;stroke-width:1;opacity:.45;stroke-dasharray:2 2;vector-effect:non-scaling-stroke}
+.wx-axis{position:relative;height:12px;font-size:10px;color:var(--muted);margin-top:1px}
+.wx-axis span{position:absolute;top:0}.wx-axis span:nth-child(1){left:0}.wx-axis span:nth-child(2){left:66.7%;transform:translateX(-50%)}.wx-axis span:nth-child(3){right:0}
+@media(max-width:400px){.wx-val{font-size:34px}.wx-dial{width:56px;height:56px}}
+@media(max-width:359px){.wx-hero{grid-template-columns:1fr}.wx-card{min-height:0}}
+html.night .wx-card{background:#000;box-shadow:none;border-color:#5a0d06}html.night .wx-card::after{display:none}

@@ -121,9 +121,12 @@ def main():
                 assert page.locator('link[rel="apple-touch-icon"]').get_attribute('href') == 'apple-touch-icon.png'
                 page.locator('[data-go="spots"]').click()
                 assert page.evaluate('window.OrellanaAtlas.getScreen()') == 'spots', 'Spots tab did not open'
+                assert page.evaluate("document.querySelector('#spotsSettings').classList.contains('collapsed') && document.querySelector('#spotsSettings .grp-sum').textContent.includes('m por vuelta') && document.querySelector('#rodsSettings .grp-sum').textContent.includes('recebar cada')"), 'settings groups should start collapsed with a summary'
                 page.locator('#addPointPanel').click()
                 page.locator('#map').click(position={'x': 140, 'y': 370})
                 page.locator('#pointDialog').wait_for(state='visible')
+                assert not page.evaluate("document.getElementById('pointMore').open") and page.locator('#pointLat').is_hidden() and page.locator('#pointDepth').is_visible(), 'point form: rarely used fields should start folded'
+                assert page.evaluate("getComputedStyle(document.querySelector('.map-hint')).display") == 'none', 'map hint shown under the point dialog'
                 page.locator('#pointName').fill('Prueba automatizada (no dato real)')
                 page.locator('#pointForm button[type="submit"]').click()
                 assert page.evaluate('window.OrellanaAtlas.getState().features.length') == 1
@@ -170,6 +173,7 @@ def main():
                 lid = priv['layers'][0]['id']
                 # Una capa más en «Capas»: elegir cuál se muestra y ponerla en la cortina del plano (el plano pasa a la derecha).
                 page.locator('#layersPill').click(); page.evaluate("document.querySelectorAll('#layersSheet section.grp.collapsed').forEach(s => s.classList.remove('collapsed'))")
+                assert page.evaluate("getComputedStyle(document.querySelector('.map-hint')).display") == 'none', 'map hint shown under the layers sheet'
                 assert page.locator('#privLayerSection').is_visible() and page.locator('#privLayersList input').count() == 1 and page.evaluate('window.OrellanaAtlas.priv().shown') == [lid], 'private layer missing from the layers sheet'
                 assert page.evaluate("document.querySelectorAll('#layersSheet section.grp').length") >= 8 and page.evaluate("document.querySelectorAll('#layersSheet section.grp.collapsed').length") == 0, 'layer groups missing or not expanded by the test'
                 page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"] .section-title').click()"); assert page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"]').classList.contains('collapsed')") and page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"] .grp-sum').textContent").endswith(' %'), 'group did not collapse with a summary'
@@ -330,6 +334,10 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas')
                 assert not page.evaluate("document.getElementById('wxDot').hidden"), 'storm did not light the weather dot before Tiempo was opened'
                 page.locator('[data-go="weather"]').click()
+                cards = page.locator('#wxNow .wx-card'); assert cards.count() == 2, 'weather hero cards missing'
+                ptxt, wtxt = cards.nth(0).inner_text(), cards.nth(1).inner_text()
+                assert 'hPa' in ptxt and 'bajando' in ptxt and page.locator('#wxNow .wx-spark').count() == 1, ptxt
+                assert 'NE' in wtxt and '20' in wtxt and page.locator('#wxNow .wx-dial').count() == 1, wtxt
                 heads = page.evaluate("[...document.querySelectorAll('#wxRead .wx-line > b')].map(b => b.textContent)")
                 assert heads[0] == 'Sin temperatura del agua' and 'El viento ha rolado de O a NE' in heads and any(h.startswith('Viento NE') for h in heads), heads
                 assert 'La máxima cae 9 °C respecto a ayer' in heads and 'Cielo cubierto' in heads and any(h.startswith('Lluvia: 4 mm') for h in heads) and any(h.startswith('Presión bajando') for h in heads), heads
