@@ -262,6 +262,18 @@ def main():
                 ls = page.evaluate(f'window.OrellanaAtlas.priv().levelFromSoundings([[{mid[0]}, {mid[1]}, 15.0, "2026-10-20"], [{mid[0] + (E - W) * 0.05}, {mid[1]}, 14.0, "2026-10-21"], [{W + (E - W) * 0.97}, {mid[1]}, 3.0, ""]])')
                 assert ls and ls['n'] == 2 and 1.5 < ls['median'] < 4.5 and ls['from'] == '2026-10-20' and ls['to'] == '2026-10-21', f'level from soundings wrong: {ls}'
                 assert page.evaluate('window.OrellanaAtlas.priv().setBand(false, 4, 6)') == 'b', 'band highlight not cleared'
+                # Abanico desde el puesto: abrir con un origen dentro del paquete sintético, leer un punto y crear un spot desde ahí.
+                fz = page.evaluate(f'window.OrellanaAtlas.priv().fan([{mid[0]}, {mid[1]}], 100)')
+                assert fz and fz['open'] and fz['cells'] > 1000 and isinstance(fz['feats'], list), f'fan did not open: {fz}'
+                page.wait_for_function("document.getElementById('fanCanvas').width > 100", timeout=5000)
+                ht = page.evaluate('window.OrellanaAtlas.priv().fanTap(30, 90)')
+                assert ht and ht['z'] is not None and ht['z'] > 5 and abs(ht['d'] - 30) < 0.01, f'fan reading wrong: {ht}'
+                assert page.locator('#fanSpot').is_enabled(), 'fan spot button stays disabled'
+                page.locator('#fanSpot').click()
+                page.wait_for_function("document.getElementById('pointDialog').open && !document.getElementById('fanDialog').open", timeout=3000)
+                assert page.evaluate("document.getElementById('pointNotes').value").startswith('A 30 m'), 'fan spot notes missing'
+                page.locator('#pointDialog .close-dialog').first.click()
+                page.wait_for_function("!document.getElementById('pointDialog').open", timeout=3000)
                 assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{mid[0]}, {mid[1]}])') is True, 'tap on the pack not handled'
                 page.wait_for_function("!document.getElementById('privSheet').hidden && window.OrellanaAtlas.priv().mark()", timeout=3000)
                 assert 'Fondo' in page.locator('#privSheetTitle').inner_text(), 'pack reading sheet wrong'
