@@ -169,8 +169,11 @@ def main():
                 assert page.evaluate('window.OrellanaAtlas.priv().relief') is True and page.evaluate('window.OrellanaAtlas.priv().setRelief(false)') is False and page.evaluate('window.OrellanaAtlas.priv().setRelief(true)') is True, 'relief toggle broken'
                 lid = priv['layers'][0]['id']
                 # Una capa más en «Capas»: elegir cuál se muestra y ponerla en la cortina del plano (el plano pasa a la derecha).
-                page.locator('#layersPill').click()
+                page.locator('#layersPill').click(); page.evaluate("document.querySelectorAll('#layersSheet section.grp.collapsed').forEach(s => s.classList.remove('collapsed'))")
                 assert page.locator('#privLayerSection').is_visible() and page.locator('#privLayersList input').count() == 1 and page.evaluate('window.OrellanaAtlas.priv().shown') == [lid], 'private layer missing from the layers sheet'
+                assert page.evaluate("document.querySelectorAll('#layersSheet section.grp').length") >= 8 and page.evaluate("document.querySelectorAll('#layersSheet section.grp.collapsed').length") == 0, 'layer groups missing or not expanded by the test'
+                page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"] .section-title').click()"); assert page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"]').classList.contains('collapsed')") and page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"] .grp-sum').textContent").endswith(' %'), 'group did not collapse with a summary'
+                page.evaluate("document.querySelector('#layersSheet section.grp[data-grp=\"privLayerSection\"] .section-title').click()")
                 assert page.locator('[data-curtain="priv"]').is_visible() and page.evaluate('window.OrellanaAtlas.priv().inCurtain') is False, 'curtain choice missing'
                 page.locator('[data-curtain="priv"]').click()
                 clip = page.evaluate("document.getElementById('topoRaster').style.clipPath").replace('px', '')
@@ -215,7 +218,7 @@ def main():
                 page.locator('#privProfileDialog .close-dialog').click()
                 page.locator('[data-go="spots"]').click()
                 page.once('dialog', lambda d: d.accept())
-                page.locator('[data-priv-del]').nth(1).click()
+                page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-priv-del]').nth(1).click()
                 page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 1', timeout=5000)
                 assert page.evaluate(f'window.OrellanaAtlas.priv().setShown({lid!r}, true)') is True and page.evaluate('window.OrellanaAtlas.priv().shown') == [lid]
                 page.locator('[data-priv-three]').first.click()
@@ -235,7 +238,7 @@ def main():
                 assert 'cfn-capa' not in page.evaluate('JSON.stringify(window.OrellanaAtlas.getState())'), 'the private layer leaked into the saved state'
                 page.locator('[data-go="spots"]').click()
                 page.once('dialog', lambda d: d.accept())   # «¿Borrar esta capa…?»
-                page.locator('[data-priv-del]').first.click()
+                page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-priv-del]').first.click()
                 page.wait_for_function('window.OrellanaAtlas.priv().layers.length === 0', timeout=5000)
                 # Paquete del fondo («cfn-fondo»): importar uno sintético, verlo por teselas, leer al tocar, perfil, 3D de lo que ves, persistencia y borrado.
                 from test_cfn_fondo import synthetic_pack_bytes, SYNTH_BOUNDS
@@ -293,11 +296,11 @@ def main():
                 assert 'cfn-fondo' not in page.evaluate('JSON.stringify(window.OrellanaAtlas.getState())'), 'the pack leaked into the saved state'
                 page.locator('[data-go="spots"]').click()
                 page.once('dialog', lambda d: d.accept())   # «¿Borrar el paquete…?»
-                page.locator('[data-pack-del]').click()
+                page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-pack-del]').click()
                 page.wait_for_function('window.OrellanaAtlas.priv().pack === null', timeout=5000)
                 page.locator('[data-go="map"]').click()
                 # WCC 2026 (capa temporal del concurso): búsqueda, ficha, «Es mi puesto» y zona desde el GPS.
-                page.locator('#layersPill').click()
+                page.locator('#layersPill').click(); page.evaluate("document.querySelectorAll('#layersSheet section.grp.collapsed').forEach(s => s.classList.remove('collapsed'))")
                 page.locator('#wccEnabled').check()
                 page.locator('#wccSec').select_option(label='Meus')
                 page.locator('#wccNum').fill('8')

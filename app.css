@@ -781,3 +781,19 @@ html.night .gps-badge small.gps-wcc,html.night .gps-badge.stale strong,html.nigh
 .fan-seg{margin-bottom:4px;display:grid;grid-template-columns:repeat(4,1fr)}.fan-seg button{padding:7px 4px;font-size:13px;min-width:0}.fan-hit{min-height:1.4em;margin:8px 0 6px;font-weight:600}.fan-acts{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin:0 0 12px}
 .fan-list{list-style:none;margin:6px 0 0;padding:0;display:grid;gap:6px}.fan-list li{display:flex;justify-content:space-between;align-items:center;gap:10px;padding:6px 0;border-bottom:1px solid var(--line);font-size:13px;cursor:pointer}.fan-list li:last-child{border-bottom:0}.fan-list li b{font-weight:700}.fan-list li small{display:block;color:var(--c-muted);margin-top:2px}
 html.night #fanCanvas{background:#120404}html.night .fan-north{color:var(--nr)}
+/* Capas plegables: el título pliega el apartado y, plegado, resume lo que está puesto */
+.layers-sheet .section.grp .section-title{cursor:pointer;user-select:none;-webkit-user-select:none}
+.layers-sheet .section.grp .section-title::after{content:"";width:7px;height:7px;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);margin-left:auto;opacity:.65;flex:none;transition:transform .2s}
+.layers-sheet .section.grp.collapsed .section-title::after{transform:rotate(-45deg)}
+.layers-sheet .section.grp.collapsed>*:not(.section-row):not(.section-title){display:none}
+.layers-sheet .section.grp.collapsed{margin-bottom:0}.layers-sheet .section.grp.collapsed .section-row{margin-bottom:4px}
+.grp-sum{font-family:var(--sans);font-size:12px;font-weight:400;color:var(--muted);letter-spacing:0;text-transform:none;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;max-width:60%;margin-left:4px}
+.section-row .section-title{min-width:0;flex:1}
+/* Explicaciones largas plegadas tras «Cómo funciona» */
+details.how{margin:8px 0 10px;border:0;padding:0}details.how summary{list-style:none;cursor:pointer;display:inline-flex;align-items:center;gap:7px;font-size:12.5px;color:var(--muted);padding:4px 0;min-height:32px}details.how summary::-webkit-details-marker{display:none}details.how summary::before{content:"i";display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;border:1px solid currentColor;font:600 11px var(--serif,serif);opacity:.8}details.how[open] summary{color:var(--accent)}details.how .note{margin-top:4px}
+/* Tarjetas de capas: acciones principales y el resto tras «Más» */
+.priv-list li{flex-direction:column;align-items:stretch}.priv-list li>div:first-child{min-width:0;flex:0 0 auto}.priv-list .team-acts{align-items:center}
+.priv-list details.more{border:0;margin:0;padding:0}.priv-list details.more>summary{font-size:14px;font-weight:500;gap:0}
+.priv-list details.more{display:inline-block}.priv-list details.more>summary{list-style:none;cursor:pointer;min-height:44px;display:inline-flex;align-items:center;padding:4px 12px;border:1px solid #5a4a33;border-radius:10px;color:var(--muted)}
+.priv-list details.more>summary::-webkit-details-marker{display:none}.priv-list details.more>summary::after{content:" ▾";font-size:11px;margin-left:4px}.priv-list details.more[open]>summary{color:var(--accent)}
+.priv-list details.more[open]{display:block;width:100%}.priv-list details.more>.team-acts{margin-top:8px;padding-top:8px;border-top:1px dashed #3b3225}
