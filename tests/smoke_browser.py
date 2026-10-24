@@ -257,6 +257,11 @@ def main():
                 rd = page.evaluate(f'window.OrellanaAtlas.priv().rodDepthAt([{mid[0]}, {mid[1]}])')
                 assert rd.startswith('carta ') and rd.endswith('(sin nivel)'), f'rod depth text wrong: {rd}'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().rodDepthAt([{W + (E - W) * 0.97}, {mid[1]}])') == '', 'rod depth on land must be empty'
+                assert page.evaluate('window.OrellanaAtlas.priv().setBand(true, 10, 14)') == 'b10-14', 'band highlight not set'
+                page.wait_for_function('window.OrellanaAtlas.priv().drawn().tiles > 0', timeout=5000)
+                ls = page.evaluate(f'window.OrellanaAtlas.priv().levelFromSoundings([[{mid[0]}, {mid[1]}, 15.0, "2026-10-20"], [{mid[0] + (E - W) * 0.05}, {mid[1]}, 14.0, "2026-10-21"], [{W + (E - W) * 0.97}, {mid[1]}, 3.0, ""]])')
+                assert ls and ls['n'] == 2 and 1.5 < ls['median'] < 4.5 and ls['from'] == '2026-10-20' and ls['to'] == '2026-10-21', f'level from soundings wrong: {ls}'
+                assert page.evaluate('window.OrellanaAtlas.priv().setBand(false, 4, 6)') == 'b', 'band highlight not cleared'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{mid[0]}, {mid[1]}])') is True, 'tap on the pack not handled'
                 page.wait_for_function("!document.getElementById('privSheet').hidden && window.OrellanaAtlas.priv().mark()", timeout=3000)
                 assert 'Fondo' in page.locator('#privSheetTitle').inner_text(), 'pack reading sheet wrong'
