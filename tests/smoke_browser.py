@@ -251,6 +251,9 @@ def main():
                 assert z and z['kind'] == 1 and 15 < z['z'] <= 18.1 and z['L'] == 0, f'pack reading wrong: {z}'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{W + (E - W) * 0.97}, {mid[1]}])')['kind'] == 2, 'land cell must read as land'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{W + (E - W) * 0.03}, {N - (N - S) * 0.03}])')['kind'] == 3, 'unsurveyed cell must read as kind 3'
+                gd = page.evaluate(f'window.OrellanaAtlas.priv().gpsDepth([{mid[0]}, {mid[1]}], 90)')
+                assert gd and gd.startswith('Fondo aquí') and ' m' in gd and '30 m adelante' in gd and '(carta)' in gd, f'GPS depth text wrong: {gd}'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().gpsDepth([{W + (E - W) * 0.97}, {mid[1]}])') is None, 'GPS depth on land must be empty'
                 assert page.evaluate(f'window.OrellanaAtlas.priv().tap([{mid[0]}, {mid[1]}])') is True, 'tap on the pack not handled'
                 page.wait_for_function("!document.getElementById('privSheet').hidden && window.OrellanaAtlas.priv().mark()", timeout=3000)
                 assert 'Fondo' in page.locator('#privSheetTitle').inner_text(), 'pack reading sheet wrong'
