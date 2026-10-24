@@ -234,6 +234,9 @@ def main():
                     assert hit and hit['depth'] > 0, f'3D pick failed: {hit}'
                     assert page.evaluate("window.OrellanaAtlas.priv().three().pan(30, 10)") and page.evaluate("window.OrellanaAtlas.priv().three().water(-1)") == -1, '3D pan or water failed'
                     assert page.evaluate("window.OrellanaAtlas.priv().three().preset('puesto')") in ('eye', None), '3D eye view failed'
+                    assert page.evaluate("window.OrellanaAtlas.priv().three().heat(true)") is True and page.evaluate("document.querySelector('#priv3dMode .active').dataset.mode") == 'heat' and '%' in page.locator('#priv3dLegendT').inner_text(), '3D heat map mode failed'
+                    assert page.evaluate("JSON.parse(localStorage.getItem('orellana-atlas-private-ui') || '{}').heat3d") is True, 'heat map choice not remembered'
+                    page.evaluate("window.OrellanaAtlas.priv().three().heat(false)")
                 assert three['mode'] in ('gl', '2d'), f'3D mode {three}'
                 page.locator('#privDialog .close-dialog').click()
                 page.reload(wait_until='domcontentloaded')
