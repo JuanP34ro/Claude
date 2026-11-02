@@ -855,3 +855,4 @@ html.night .priv-prof-read{background:#000}html.night .ghost:not(.icon-btn){colo
 /* 3D de noche: el mismo rojo que el resto de la app, para no deslumbrar en el puesto */
 .night #t3d{filter:grayscale(1) sepia(1) saturate(5) hue-rotate(-38deg) brightness(.5)}
 .warn-line{color:#e2c587;border-left:2px solid #c9a45c;padding-left:8px}
+.offline-banner.tap{cursor:pointer;text-decoration:underline dotted;text-underline-offset:3px}
