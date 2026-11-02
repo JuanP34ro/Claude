@@ -359,10 +359,18 @@ def main():
                 page.wait_for_function('window.OrellanaAtlas.priv().packs.length === 1 && window.OrellanaAtlas.priv().packs[0].pid !== ""', timeout=15000)
                 left = page.evaluate('''() => new Promise(ok => { const r = indexedDB.open('orellana-atlas-private'); r.onsuccess = () => { const q = r.result.transaction('pack').objectStore('pack').getAllKeys(); q.onsuccess = () => { r.result.close(); ok(q.result.filter(k => k === 'meta' || /^t\\/\\d/.test(k)).length); }; }; })''')
                 assert left == 0, f'{left} legacy rows left after replacing the pack'
-                page.locator('[data-go="spots"]').click()
-                page.once('dialog', lambda d: d.accept())
+                # Paquete de terreno sintético emparejado con el fondo por la esquina de la rejilla; al borrar el fondo se ofrece borrar también el terreno.
+                import tempfile, cfn_terreno as CT
+                from test_cfn_fondo import X0 as SX0, Y1 as SY1
+                with tempfile.TemporaryDirectory() as td:
+                    tp = str(Path(td) / 'prueba.cfnterreno'); CT.write_terrain(tp, dict(name='Sintético · terreno IGN', origin=[SX0, SY1], grid=[96, 96], index={}), [('ao.png', b'no es una imagen')])
+                    page.locator('[data-go="spots"]').click(); page.locator('#privIn').set_input_files({'name': 'prueba.cfnterreno', 'mimeType': 'application/octet-stream', 'buffer': open(tp, 'rb').read()})
+                page.wait_for_function('window.OrellanaAtlas.priv().terrains().length === 1', timeout=10000)
+                assert '3D con terreno' in page.inner_text('#privList'), 'terrain not shown on the pack card'
+                accept_all = lambda d: d.accept(); page.on('dialog', accept_all)   # «¿Borrar «…»?» y «¿Borrar también su terreno 3D?»
                 page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-pack-del]').first.click()
-                page.wait_for_function('window.OrellanaAtlas.priv().pack === null', timeout=5000)
+                page.wait_for_function('window.OrellanaAtlas.priv().pack === null && window.OrellanaAtlas.priv().terrains().length === 0', timeout=5000)
+                page.remove_listener('dialog', accept_all)
                 page.locator('[data-go="map"]').click()
                 # WCC 2026 (capa temporal del concurso): búsqueda, ficha, «Es mi puesto» y zona desde el GPS.
                 page.locator('#layersPill').click(); page.evaluate("document.querySelectorAll('#layersSheet section.grp.collapsed').forEach(s => s.classList.remove('collapsed'))")

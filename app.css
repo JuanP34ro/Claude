@@ -852,3 +852,6 @@ html.night .priv-prof-read{background:#000}html.night .ghost:not(.icon-btn){colo
 /* 3D del embalse: botón del mapa (el motor y su capa van en terra3d.js) */
 .t3d-btn{border:1px solid #c9a45c66!important;background:#0b0a08cc!important;backdrop-filter:blur(8px);-webkit-backdrop-filter:blur(8px)}
 .t3d-btn strong{font:700 15px/1 var(--engraved);letter-spacing:.04em;color:var(--gold)}
+/* 3D de noche: el mismo rojo que el resto de la app, para no deslumbrar en el puesto */
+.night #t3d{filter:grayscale(1) sepia(1) saturate(5) hue-rotate(-38deg) brightness(.5)}
+.warn-line{color:#e2c587;border-left:2px solid #c9a45c;padding-left:8px}
