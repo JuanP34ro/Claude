@@ -82,7 +82,7 @@ def main():
     base = f'http://127.0.0.1:{httpd.server_port}'
     try:
         with sync_playwright() as pw:
-            options = {'headless': True}
+            options = {'headless': True, 'args': ['--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist']}   # WebGL for the 3D
             chromium = shutil.which('chromium')
             if chromium:
                 options['executable_path'] = chromium
@@ -298,6 +298,16 @@ def main():
                 assert page.evaluate('window.OrellanaAtlas.priv().packThree()') is True, '3D of the visible pack did not open'
                 page.wait_for_function('window.OrellanaAtlas.priv().three() && window.OrellanaAtlas.priv().three().frames > 0', timeout=5000)
                 page.locator('#privDialog .close-dialog').click()
+                # 3D del embalse (terra3d.js) sobre el paquete sintético: se abre desde el botón del mapa, lee teselas de IndexedDB y «2D» vuelve al mapa.
+                if page.evaluate("!!document.createElement('canvas').getContext('webgl')"):
+                    page.locator('[data-go="map"]').click(); page.evaluate(f'window.OrellanaAtlas.setView([{mid[0]}, {mid[1]}], 17)')
+                    assert page.is_visible('#t3dBtn'), '3D button hidden with a pack'
+                    page.locator('#t3dBtn').click()
+                    page.wait_for_function('window.OrellanaAtlas.priv().terra() && window.OrellanaAtlas.priv().terra().ready() && window.OrellanaAtlas.priv().terra().tiles > 0', timeout=30000)
+                    c3 = page.evaluate('window.OrellanaAtlas.priv().terra().center()')
+                    assert abs(c3['lon'] - mid[0]) < 1e-4 and abs(c3['lat'] - mid[1]) < 1e-4, f'3D did not open where the map was: {c3}'
+                    page.locator('#t3-back').click(); page.wait_for_function("!document.getElementById('t3d')", timeout=5000)
+                    threeD = True
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas && window.OrellanaAtlas.priv().pack && window.OrellanaAtlas.priv().pack.level === 2', timeout=10000)
                 assert 'cfn-fondo' not in page.evaluate('JSON.stringify(window.OrellanaAtlas.getState())'), 'the pack leaked into the saved state'
