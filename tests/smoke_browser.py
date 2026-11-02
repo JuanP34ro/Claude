@@ -301,9 +301,57 @@ def main():
                 page.reload(wait_until='domcontentloaded')
                 page.wait_for_function('window.OrellanaAtlas && window.OrellanaAtlas.priv().pack && window.OrellanaAtlas.priv().pack.level === 2', timeout=10000)
                 assert 'cfn-fondo' not in page.evaluate('JSON.stringify(window.OrellanaAtlas.getState())'), 'the pack leaked into the saved state'
+                # Dos embalses a la vez: un segundo paquete desplazado 2 km al este no sustituye al primero; el activo sigue al centro del mapa,
+                # cada uno conserva su nivel de hoy, sobreviven a recargar y reimportar uno lo sustituye solo a él.
+                DX = 2000.0
+                second = synthetic_pack_bytes(name='Segundo embalse sintético', dx=DX)
                 page.locator('[data-go="spots"]').click()
-                page.once('dialog', lambda d: d.accept())   # «¿Borrar el paquete…?»
-                page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-pack-del]').click()
+                page.locator('#privIn').set_input_files({'name': 'segundo.cfnfondo', 'mimeType': 'application/octet-stream', 'buffer': second})
+                page.wait_for_function('window.OrellanaAtlas.priv().packs.length === 2', timeout=15000)
+                pks = page.evaluate('window.OrellanaAtlas.priv().packs')
+                assert [p['active'] for p in pks if p['name'].startswith('Segundo')] == [True], f'new pack not active: {pks}'
+                assert page.locator('[data-pack-del]').count() == 2 and page.locator('#privLayersList input[data-priv-show="pack"]').count() == 1, 'two pack cards and one switch expected'
+                lon2 = mid[0] + DX / 6378137.0 * 57.29577951308232
+                z2 = page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{lon2}, {mid[1]}])')
+                assert z2 and z2['kind'] == 1 and 15 < z2['z'] <= 18.1, f'second pack reading wrong: {z2}'
+                assert page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{mid[0]}, {mid[1]}])') is None, 'the first pack must not be read while the second is active'
+                page.locator('[data-go="map"]').click()
+                page.evaluate(f'window.OrellanaAtlas.setView([{mid[0]}, {mid[1]}], 17)')
+                page.wait_for_function('window.OrellanaAtlas.priv().packs.find(p => p.active).name.startsWith("Paquete")', timeout=5000)
+                page.wait_for_function('window.OrellanaAtlas.priv().drawn().tiles > 0', timeout=8000)
+                assert page.evaluate('window.OrellanaAtlas.priv().pack.level') == 2, 'first pack lost its level'
+                page.reload(wait_until='domcontentloaded')
+                page.wait_for_function('window.OrellanaAtlas && window.OrellanaAtlas.priv().packs.length === 2', timeout=10000)
+                lv = {p['name'][:7]: p['level'] for p in page.evaluate('window.OrellanaAtlas.priv().packs')}
+                assert lv == {'Paquete': 2, 'Segundo': 0}, f'levels after reload wrong: {lv}'
+                page.locator('[data-go="spots"]').click()
+                page.locator('#privIn').set_input_files({'name': 'segundo.cfnfondo', 'mimeType': 'application/octet-stream', 'buffer': second})
+                page.wait_for_function('window.OrellanaAtlas.priv().packs.find(p => p.active).name.startsWith("Segundo")', timeout=15000)
+                assert len(page.evaluate('window.OrellanaAtlas.priv().packs')) == 2, 'reimporting a pack must replace only that pack'
+                for left in (1, 0):
+                    page.locator('[data-go="spots"]').click()
+                    page.once('dialog', lambda d: d.accept())   # «¿Borrar «…» de este móvil?»
+                    page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-pack-del]').first.click()
+                    page.wait_for_function(f'window.OrellanaAtlas.priv().packs.length === {left}', timeout=5000)
+                page.wait_for_function('window.OrellanaAtlas.priv().pack === null', timeout=5000)
+                # Un paquete guardado con el esquema de antes (cabecera «meta», teselas «t/L/x/y») se sigue leyendo y al reimportarlo se sustituye sin dejar filas.
+                page.locator('#privIn').set_input_files({'name': 'prueba.cfnfondo', 'mimeType': 'application/octet-stream', 'buffer': synthetic_pack_bytes()})
+                page.wait_for_function('window.OrellanaAtlas.priv().packs.length === 1', timeout=15000)
+                page.evaluate('''() => new Promise((ok, ko) => { const r = indexedDB.open('orellana-atlas-private'); r.onsuccess = () => { const t = r.result.transaction('pack', 'readwrite'), st = t.objectStore('pack');
+                  st.getAll().onsuccess = e => { for (const row of e.target.result) { st.delete(row.k); if (row.k.startsWith('meta/')) { const m = {...row, k: 'meta'}; delete m.pid; st.put(m); } else st.put({...row, k: 't/' + row.k.split('/').slice(2).join('/')}); } };
+                  t.oncomplete = () => { r.result.close(); ok(); }; t.onerror = () => ko(t.error); }; })''')
+                page.reload(wait_until='domcontentloaded')
+                page.wait_for_function('window.OrellanaAtlas && window.OrellanaAtlas.priv().packs.length === 1 && window.OrellanaAtlas.priv().packs[0].pid === ""', timeout=10000)
+                zl = page.evaluate(f'window.OrellanaAtlas.priv().packEnsure([{mid[0]}, {mid[1]}])')
+                assert zl and zl['kind'] == 1 and 15 < zl['z'] <= 18.1, f'legacy pack reading wrong: {zl}'
+                page.locator('[data-go="spots"]').click()
+                page.locator('#privIn').set_input_files({'name': 'prueba.cfnfondo', 'mimeType': 'application/octet-stream', 'buffer': synthetic_pack_bytes()})
+                page.wait_for_function('window.OrellanaAtlas.priv().packs.length === 1 && window.OrellanaAtlas.priv().packs[0].pid !== ""', timeout=15000)
+                left = page.evaluate('''() => new Promise(ok => { const r = indexedDB.open('orellana-atlas-private'); r.onsuccess = () => { const q = r.result.transaction('pack').objectStore('pack').getAllKeys(); q.onsuccess = () => { r.result.close(); ok(q.result.filter(k => k === 'meta' || /^t\\/\\d/.test(k)).length); }; }; })''')
+                assert left == 0, f'{left} legacy rows left after replacing the pack'
+                page.locator('[data-go="spots"]').click()
+                page.once('dialog', lambda d: d.accept())
+                page.evaluate("document.querySelectorAll('#privList details.more').forEach(d => d.open = true)"); page.locator('[data-pack-del]').first.click()
                 page.wait_for_function('window.OrellanaAtlas.priv().pack === null', timeout=5000)
                 page.locator('[data-go="map"]').click()
                 # WCC 2026 (capa temporal del concurso): búsqueda, ficha, «Es mi puesto» y zona desde el GPS.

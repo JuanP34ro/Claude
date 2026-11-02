@@ -94,14 +94,21 @@ def synthetic_pack_header():
                 zmax=18.0, layers=[dict(id=1, name='Cubeta sintética')], ct=dict(scale=0.002), kinds={'0': 'sin dato', '1': 'agua', '2': 'tierra', '3': 'sin sondeos'})
 
 
-def synthetic_pack_bytes():
+def synthetic_pack_bytes(name=None, dx=0.0):
+    """La cubeta sintética; con name y dx (metros Mercator hacia el este) sirve de segundo embalse en la prueba de varios paquetes."""
     dm, meta, ct, w, h = base_grid()
     tiles = list(tiles_of(0, dm, meta, ct, w, h))
     dm1, meta1, ct1, w1, h1 = pool(dm, meta, ct, w, h)
     tiles += list(tiles_of(1, dm1, meta1, ct1, w1, h1))
     with tempfile.TemporaryDirectory() as d:
         p = os.path.join(d, 'prueba.cfnfondo')
-        CF.write_pack(p, synthetic_pack_header(), tiles)
+        hd = synthetic_pack_header()
+        if name:
+            hd['name'] = name
+        if dx:
+            hd['origin'] = [X0 + dx, Y1]
+            hd['bounds'] = [LON(X0 + dx), hd['bounds'][1], LON(X0 + dx + GRID * CELL), hd['bounds'][3]]
+        CF.write_pack(p, hd, tiles)
         return open(p, 'rb').read()
 
 
